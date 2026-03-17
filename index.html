@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#f5ede0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="memo">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Your warm, ADHD-friendly second brain">
+<link rel="manifest" href="/manifest.json">
+<title>memo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg:        #f7f0e6;
+    --bg2:       #f0e6d6;
+    --bg3:       #e8dac8;
+    --card:      #faf5ee;
+    --card2:     #f3ebdd;
+    --ink:       #2c2416;
+    --ink2:      #5a4e3c;
+    --ink3:      #9a8c78;
+    --accent:    #c4764a;
+    --accent2:   #e09b6e;
+    --accent3:   #f0c9a8;
+    --green:     #6b8f6e;
+    --blue:      #7090a8;
+    --purple:    #9080a0;
+    --gold:      #c49a48;
+    --red:       #b85040;
+    --shadow:    0 2px 16px rgba(60,40,10,0.10);
+    --radius:    18px;
+    --radius-sm: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(247,240,230,0.94);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    padding: 14px 18px 10px;
+    padding-top: max(14px, env(safe-area-inset-top));
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--bg3);
+  }
+  .topbar-logo {
+    font-family: 'Lora', serif;
+    font-size: 22px; font-weight: 600;
+    color: var(--ink); letter-spacing: -0.5px;
+  }
+  .topbar-logo span { color: var(--accent); }
+  .topbar-right { display: flex; gap: 8px; }
+  .icon-btn {
+    width: 38px; height: 38px;
+    border: none; background: var(--card2);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--ink2); font-size: 16px;
+    transition: background 0.15s, transform 0.1s;
+    position: relative;
+  }
+  .icon-btn:active { transform: scale(0.93); }
+
+  /* ── NAV ── */
+  .nav {
+    display: flex; background: var(--bg);
+    border-bottom: 1px solid var(--bg3);
+    overflow-x: auto; scrollbar-width: none;
+    padding: 0 12px; gap: 4px;
+    position: sticky; top: 57px; z-index: 99;
+  }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav-tab {
+    flex-shrink: 0; padding: 10px 16px;
+    border: none; background: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 400;
+    color: var(--ink3); cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+  .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+
+  /* ── MAIN ── */
+  .main { padding: 16px; max-width: 640px; margin: 0 auto; position: relative; z-index: 1; }
+
+  /* ── TODAY ── */
+  .today-greeting { font-family: 'Lora', serif; font-size: 26px; font-weight: 500; margin-bottom: 4px; }
+  .today-date { font-size: 13px; color: var(--ink3); margin-bottom: 20px; }
+  .section-label {
+    font-size: 11px; font-weight: 500; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--ink3);
+    margin-bottom: 10px; margin-top: 22px;
+  }
+
+  /* ── CARDS ── */
+  .note-card {
+    background: var(--card); border-radius: var(--radius);
+    padding: 16px; margin-bottom: 12px;
+    box-shadow: var(--shadow); cursor: pointer;
+    transition: transform 0.15s; position: relative; overflow: hidden;
+  }
+  .note-card:active { transform: scale(0.98); }
+  .note-card.pinned::before {
+    content: ''; position: absolute; top: 0; right: 0;
+    width: 0; height: 0; border-style: solid;
+    border-width: 0 32px 32px 0;
+    border-color: transparent var(--gold) transparent transparent;
+  }
+  .note-title { font-family: 'Lora', serif; font-size: 16px; font-weight: 500; line-height: 1.3; margin-bottom: 8px; }
+  .note-body { font-size: 14px; color: var(--ink2); line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .note-footer { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .note-tag {
+    font-size: 11px; font-weight: 500; padding: 3px 9px;
+    border-radius: 20px; display: inline-flex; align-items: center;
+  }
+  .tag-work     { background: rgba(107,143,110,0.15); color: var(--green); }
+  .tag-studio   { background: rgba(196,118,74,0.15);  color: var(--accent); }
+  .tag-personal { background: rgba(144,128,160,0.15); color: var(--purple); }
+  .tag-ideas    { background: rgba(196,154,72,0.15);  color: var(--gold); }
+  .tag-inbox    { background: rgba(112,144,168,0.15); color: var(--blue); }
+  .note-time { font-size: 12px; color: var(--ink3); margin-left: auto; }
+
+  /* ── TODO ── */
+  .todo-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: var(--card); border-radius: var(--radius-sm);
+    padding: 12px 14px; margin-bottom: 8px;
+    box-shadow: var(--shadow); cursor: pointer;
+  }
+  .todo-item.done { opacity: 0.45; }
+  .todo-check {
+    width: 22px; height: 22px; flex-shrink: 0;
+    border: 2px solid var(--bg3); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 1px; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .todo-check.checked { background: var(--green); border-color: var(--green); color: white; font-size: 12px; }
+  .todo-text { flex: 1; font-size: 15px; line-height: 1.4; }
+  .todo-text.done { text-decoration: line-through; }
+  .todo-due { font-size: 12px; color: var(--ink3); margin-top: 3px; }
+  .row-del { background: none; border: none; color: var(--ink3); font-size: 16px; cursor: pointer; padding: 4px; align-self: center; }
+
+  /* ── REMINDER ── */
+  .reminder-item {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card); border-radius: var(--radius-sm);
+    padding: 12px 14px; margin-bottom: 8px;
+    box-shadow: var(--shadow); border-left: 3px solid var(--accent);
+  }
+  .reminder-item.past { opacity: 0.5; border-left-color: var(--ink3); }
+  .reminder-text { flex: 1; font-size: 15px; }
+  .reminder-time { font-size: 12px; color: var(--accent); font-weight: 500; }
+
+  /* ── CAPTURE BAR ── */
+  .capture-area {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+    background: rgba(247,240,230,0.96);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid var(--bg3);
+    padding: 12px 16px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+  .capture-row { display: flex; align-items: flex-end; gap: 10px; }
+  .capture-input {
+    flex: 1; min-height: 42px; max-height: 120px;
+    background: var(--card); border: 1.5px solid var(--bg3);
+    border-radius: 22px; padding: 10px 16px;
+    font-family: 'DM Sans', sans-serif; font-size: 15px; color: var(--ink);
+    resize: none; outline: none; transition: border-color 0.15s; line-height: 1.4;
+  }
+  .capture-input:focus { border-color: var(--accent2); }
+  .capture-input::placeholder { color: var(--ink3); }
+  .capture-voice {
+    width: 42px; height: 42px; flex-shrink: 0; border: none;
+    background: var(--accent); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: white; font-size: 18px;
+    box-shadow: 0 2px 12px rgba(196,118,74,0.35);
+    transition: transform 0.1s;
+  }
+  .capture-voice:active { transform: scale(0.93); }
+  .capture-voice.listening { background: var(--red); animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 2px 12px rgba(184,80,64,0.35); }
+    50%      { box-shadow: 0 2px 28px rgba(184,80,64,0.65); }
+  }
+  .capture-send {
+    width: 42px; height: 42px; flex-shrink: 0; border: none;
+    background: var(--ink); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: white; font-size: 16px;
+    transition: transform 0.1s;
+  }
+  .capture-send:active { transform: scale(0.93); }
+  .capture-hint { font-size: 11px; color: var(--ink3); text-align: center; margin-top: 6px; }
+
+  /* ── TYPE SELECTOR ── */
+  .type-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .type-chip {
+    flex: 1; padding: 7px 6px; border-radius: 10px;
+    font-size: 12px; font-weight: 500; text-align: center;
+    border: 1.5px solid var(--bg3); background: none;
+    cursor: pointer; color: var(--ink3); transition: all 0.15s;
+  }
+  .type-chip.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  /* ── SHEETS ── */
+  .sheet-overlay {
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(44,36,22,0.45);
+    display: none; align-items: flex-end;
+  }
+  .sheet-overlay.open { display: flex; }
+  .sheet {
+    width: 100%; max-height: 92vh;
+    background: var(--card); border-radius: 28px 28px 0 0;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    overflow-y: auto;
+    animation: slideUp 0.3s cubic-bezier(0.32,0.72,0,1);
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .sheet-handle { width: 40px; height: 4px; background: var(--bg3); border-radius: 2px; margin: 14px auto 0; }
+  .sheet-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 20px 12px; border-bottom: 1px solid var(--bg3);
+  }
+  .sheet-title { font-family: 'Lora', serif; font-size: 18px; font-weight: 500; }
+  .sheet-close {
+    width: 32px; height: 32px; border: none; background: var(--bg2);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 16px; color: var(--ink2);
+  }
+  .sheet-body { padding: 16px 20px; }
+
+  /* ── FORMS ── */
+  .form-row { margin-bottom: 14px; }
+  .form-label { font-size: 12px; font-weight: 500; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; display: block; }
+  .form-input {
+    width: 100%; background: var(--bg2); border: 1.5px solid var(--bg3);
+    border-radius: var(--radius-sm); padding: 10px 14px;
+    font-family: 'DM Sans', sans-serif; font-size: 15px; color: var(--ink); outline: none;
+  }
+  .form-input:focus { border-color: var(--accent2); }
+  .submit-btn {
+    width: 100%; padding: 14px; background: var(--accent); color: white;
+    border: none; border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500;
+    cursor: pointer; margin-top: 6px;
+  }
+  .submit-btn:active { opacity: 0.85; }
+
+  /* ── AI ── */
+  .ai-input-row { display: flex; gap: 10px; margin-bottom: 16px; }
+  .ai-input {
+    flex: 1; background: var(--bg2); border: 1.5px solid var(--bg3);
+    border-radius: 22px; padding: 10px 16px;
+    font-family: 'DM Sans', sans-serif; font-size: 15px; color: var(--ink); outline: none;
+  }
+  .ai-btn {
+    padding: 10px 18px; background: var(--ink); color: white;
+    border: none; border-radius: 22px;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer;
+  }
+  .ai-response {
+    background: var(--bg2); border-radius: var(--radius-sm);
+    padding: 14px 16px; font-size: 14px; line-height: 1.75;
+    color: var(--ink2); white-space: pre-wrap; min-height: 60px;
+  }
+  .ai-loading { color: var(--ink3); font-style: italic; }
+  .quick-prompts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .quick-btn {
+    padding: 8px 14px; border: 1.5px solid var(--bg3);
+    background: var(--card); border-radius: 22px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    color: var(--ink2); cursor: pointer;
+  }
+  .quick-btn:active { background: var(--bg2); }
+
+  /* ── SEARCH ── */
+  .search-input {
+    width: 100%; background: var(--bg2); border: 1.5px solid var(--bg3);
+    border-radius: 22px; padding: 11px 18px;
+    font-family: 'DM Sans', sans-serif; font-size: 15px; color: var(--ink);
+    outline: none; margin-bottom: 16px;
+  }
+  .search-input:focus { border-color: var(--accent2); }
+
+  /* ── FOLDER CHIPS ── */
+  .folder-row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-bottom: 16px; }
+  .folder-row::-webkit-scrollbar { display: none; }
+  .folder-chip {
+    flex-shrink: 0; padding: 7px 14px; border-radius: 20px;
+    font-size: 13px; font-weight: 500;
+    border: 1.5px solid transparent; cursor: pointer;
+  }
+  .folder-chip.active { border-color: currentColor; }
+
+  /* ── NOTE DETAIL ── */
+  .note-detail-title { font-family: 'Lora', serif; font-size: 22px; font-weight: 500; line-height: 1.35; margin-bottom: 10px; }
+  .note-detail-body { font-size: 16px; line-height: 1.8; color: var(--ink2); white-space: pre-wrap; margin-top: 16px; }
+  .note-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+  .note-action-btn {
+    flex: 1; min-width: 90px; padding: 10px;
+    border: 1.5px solid var(--bg3); background: none;
+    border-radius: 10px; font-family: 'DM Sans', sans-serif;
+    font-size: 13px; color: var(--ink2); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .note-action-btn:active { background: var(--bg2); }
+  .note-action-btn.danger { color: var(--red); border-color: rgba(184,80,64,0.3); }
+
+  /* ── EMPTY ── */
+  .empty { text-align: center; padding: 48px 24px; color: var(--ink3); }
+  .empty-icon { font-size: 44px; margin-bottom: 12px; opacity: 0.5; }
+  .empty-title { font-family: 'Lora', serif; font-size: 18px; color: var(--ink2); margin-bottom: 6px; }
+  .empty-sub { font-size: 14px; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 110px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink); color: white;
+    padding: 10px 20px; border-radius: 30px;
+    font-size: 14px; opacity: 0; z-index: 500;
+    transition: opacity 0.2s, transform 0.2s; white-space: nowrap;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── ONBOARDING ── */
+  .onboarding {
+    position: fixed; inset: 0; z-index: 1000;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 32px 28px;
+    text-align: center;
+  }
+  .onboarding.hidden { display: none; }
+  .ob-logo { font-family: 'Lora', serif; font-size: 48px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+  .ob-logo span { color: var(--accent); }
+  .ob-tagline { font-size: 15px; color: var(--ink3); margin-bottom: 40px; }
+  .ob-card {
+    width: 100%; background: var(--card);
+    border-radius: var(--radius); padding: 24px;
+    box-shadow: var(--shadow); text-align: left; margin-bottom: 16px;
+  }
+  .ob-step { font-size: 11px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .ob-text { font-size: 14px; color: var(--ink2); line-height: 1.6; margin-bottom: 16px; }
+  .ob-link { color: var(--accent); text-decoration: none; font-weight: 500; }
+  .ob-input {
+    width: 100%; background: var(--bg2); border: 1.5px solid var(--bg3);
+    border-radius: var(--radius-sm); padding: 12px 14px;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--ink);
+    outline: none; letter-spacing: 0.5px;
+  }
+  .ob-input:focus { border-color: var(--accent2); }
+  .ob-btn {
+    width: 100%; padding: 15px; background: var(--accent); color: white;
+    border: none; border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 500;
+    cursor: pointer; margin-top: 12px;
+  }
+  .ob-note { font-size: 12px; color: var(--ink3); margin-top: 16px; line-height: 1.6; }
+  .ob-skip { font-size: 13px; color: var(--ink3); margin-top: 20px; cursor: pointer; text-decoration: underline; }
+
+  /* ── API KEY SETTINGS ── */
+  .settings-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 0; border-bottom: 1px solid var(--bg3);
+  }
+  .settings-label { font-size: 15px; color: var(--ink2); }
+  .settings-val { font-size: 13px; color: var(--ink3); font-family: monospace; }
+
+  /* ── INSTALL BANNER ── */
+  .install-banner {
+    display: none;
+    background: var(--accent); color: white;
+    padding: 12px 16px; text-align: center;
+    font-size: 14px; cursor: pointer;
+    position: relative; z-index: 1;
+  }
+  .install-banner.visible { display: block; }
+
+  /* ── VIEWS ── */
+  .view { display: none; }
+  .view.active { display: block; }
+  .bottom-spacer { height: 90px; }
+</style>
+</head>
+<body>
+
+<!-- ONBOARDING / API KEY SETUP -->
+<div class="onboarding hidden" id="onboarding">
+  <div class="ob-logo">me<span>·</span>mo</div>
+  <div class="ob-tagline">Your warm, ADHD-friendly second brain</div>
+
+  <div class="ob-card">
+    <div class="ob-step">One-time setup</div>
+    <div class="ob-text">
+      memo uses Claude AI to auto-tag your notes and answer questions about them.
+      You'll need a free Anthropic API key — it costs pennies for personal use (~$1–2/month).
+    </div>
+    <div class="ob-text">
+      👉 Get your key at <a class="ob-link" href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>
+      → sign up → API Keys → Create Key
+    </div>
+    <input class="ob-input" id="ob-key-input" type="password" placeholder="sk-ant-api03-…" />
+    <button class="ob-btn" onclick="saveAPIKey()">Save & start using memo</button>
+    <p class="ob-note">🔒 Your key is stored only on this device in local storage. It never leaves your phone.</p>
+  </div>
+
+  <div class="ob-skip" onclick="skipAPIKey()">Skip for now — use without AI features</div>
+</div>
+
+<!-- INSTALL BANNER -->
+<div class="install-banner" id="install-banner" onclick="installApp()">
+  📲 Add memo to your home screen for the best experience
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-logo">me<span>·</span>mo</div>
+  <div class="topbar-right">
+    <button class="icon-btn" onclick="openSearch()" title="Search">🔍</button>
+    <button class="icon-btn" onclick="openAISheet()" title="Ask AI">✦</button>
+    <button class="icon-btn" onclick="openAddSheet('reminder')" title="Add reminder">🔔</button>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+  <button class="nav-tab active" onclick="switchView('today',this)">Today</button>
+  <button class="nav-tab" onclick="switchView('notes',this)">Notes</button>
+  <button class="nav-tab" onclick="switchView('todos',this)">To-Do</button>
+  <button class="nav-tab" onclick="switchView('reminders',this)">Reminders</button>
+  <button class="nav-tab" onclick="switchView('ask',this)">Ask AI</button>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- TODAY -->
+  <div id="view-today" class="view active">
+    <div class="today-greeting" id="greeting"></div>
+    <div class="today-date" id="today-date"></div>
+    <div class="section-label">Reminders Today</div>
+    <div id="today-reminders"></div>
+    <div class="section-label">To-Do</div>
+    <div id="today-todos"></div>
+    <div class="section-label">Recent Notes</div>
+    <div id="today-notes"></div>
+  </div>
+
+  <!-- NOTES -->
+  <div id="view-notes" class="view">
+    <div class="folder-row" id="folder-filter"></div>
+    <div id="notes-list"></div>
+  </div>
+
+  <!-- TODOS -->
+  <div id="view-todos" class="view">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-family:'Lora',serif;font-size:20px;font-weight:500">To-Do</div>
+      <button class="icon-btn" onclick="openAddSheet('todo')" style="background:var(--accent);color:white;font-size:20px">+</button>
+    </div>
+    <div id="todos-list"></div>
+  </div>
+
+  <!-- REMINDERS -->
+  <div id="view-reminders" class="view">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-family:'Lora',serif;font-size:20px;font-weight:500">Reminders</div>
+      <button class="icon-btn" onclick="openAddSheet('reminder')" style="background:var(--accent);color:white;font-size:20px">+</button>
+    </div>
+    <div id="reminders-list"></div>
+  </div>
+
+  <!-- ASK AI -->
+  <div id="view-ask" class="view">
+    <div style="font-family:'Lora',serif;font-size:20px;font-weight:500;margin-bottom:6px">Ask about your notes</div>
+    <div style="font-size:13px;color:var(--ink3);margin-bottom:20px">Summarise, find patterns, explore your thoughts.</div>
+    <div class="ai-input-row">
+      <input class="ai-input" id="ai-query" placeholder="What have I been thinking about lately?" />
+      <button class="ai-btn" onclick="runAsk()">Ask</button>
+    </div>
+    <div class="ai-response ai-loading" id="ai-response" style="display:none">Thinking…</div>
+    <div class="section-label" style="margin-top:20px">Quick prompts</div>
+    <div class="quick-prompts">
+      <button class="quick-btn" onclick="quickAsk(this,'Summarise my notes from this week')">This week</button>
+      <button class="quick-btn" onclick="quickAsk(this,'What work tasks or ideas are unresolved?')">Unresolved work</button>
+      <button class="quick-btn" onclick="quickAsk(this,'What creative or studio ideas have I captured?')">Studio ideas</button>
+      <button class="quick-btn" onclick="quickAsk(this,'What personal things have I been thinking about?')">Personal</button>
+      <button class="quick-btn" onclick="quickAsk(this,'What should I focus on today?')">Focus today</button>
+    </div>
+  </div>
+
+  <div class="bottom-spacer"></div>
+</div>
+
+<!-- CAPTURE BAR -->
+<div class="capture-area">
+  <div class="type-row">
+    <button class="type-chip active" id="type-note"     onclick="setType('note',this)">📝 Note</button>
+    <button class="type-chip"        id="type-todo"     onclick="setType('todo',this)">✓ To-Do</button>
+    <button class="type-chip"        id="type-reminder" onclick="setType('reminder',this)">🔔 Remind</button>
+  </div>
+  <div class="capture-row">
+    <button class="capture-voice" id="voice-btn" onclick="toggleVoice()">🎙️</button>
+    <textarea class="capture-input" id="capture-input" placeholder="Capture a thought…" rows="1" oninput="autoResize(this)"></textarea>
+    <button class="capture-send" onclick="capture()">↑</button>
+  </div>
+  <div class="capture-hint" id="capture-hint">tap mic · type · hit ↑ to save</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- SHEET: Note detail -->
+<div class="sheet-overlay" id="sheet-note" onclick="closeSheet('sheet-note')">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div class="sheet-title">Note</div>
+      <button class="sheet-close" onclick="closeSheet('sheet-note')">✕</button>
+    </div>
+    <div class="sheet-body" id="sheet-note-body"></div>
+  </div>
+</div>
+
+<!-- SHEET: Add todo / reminder -->
+<div class="sheet-overlay" id="sheet-add" onclick="closeSheet('sheet-add')">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div class="sheet-title" id="sheet-add-title">Add</div>
+      <button class="sheet-close" onclick="closeSheet('sheet-add')">✕</button>
+    </div>
+    <div class="sheet-body" id="sheet-add-body"></div>
+  </div>
+</div>
+
+<!-- SHEET: Search -->
+<div class="sheet-overlay" id="sheet-search" onclick="closeSheet('sheet-search')">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div class="sheet-title">Search</div>
+      <button class="sheet-close" onclick="closeSheet('sheet-search')">✕</button>
+    </div>
+    <div class="sheet-body">
+      <input class="search-input" id="search-input" placeholder="Search your notes…" oninput="liveSearch()" />
+      <div id="search-results"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SHEET: AI -->
+<div class="sheet-overlay" id="sheet-ai" onclick="closeSheet('sheet-ai')">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div class="sheet-title">✦ Ask AI</div>
+      <button class="sheet-close" onclick="closeSheet('sheet-ai')">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="ai-input-row">
+        <input class="ai-input" id="sheet-ai-input" placeholder="Ask anything about your notes…" />
+        <button class="ai-btn" onclick="runSheetAI()">Ask</button>
+      </div>
+      <div class="ai-response" id="sheet-ai-response" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  STATE & PERSISTENCE
+// ─────────────────────────────────────────────
+
+const SK = 'memo_v2';
+let S = { notes: [], todos: [], reminders: [] };
+
+function save() {
+  try { localStorage.setItem(SK, JSON.stringify(S)); } catch(e) {}
+}
+
+function load() {
+  try {
+    const d = localStorage.getItem(SK);
+    if (d) { S = JSON.parse(d); return; }
+  } catch(e) {}
+  // Seed
+  const now = Date.now();
+  S = {
+    notes: [
+      { id: uid(), title: 'Welcome to memo', body: 'Capture thoughts instantly — tap the mic to speak, or type below. AI auto-tags everything so you never have to organise manually.', folder: 'inbox', tags: ['inbox'], pinned: true, ts: now - 60000 },
+      { id: uid(), title: 'Studio idea — animated service maps', body: 'Could offer animated SVG service area maps as an upsell for local business clients. The Mexbruk site could be a template for this kind of offering.', folder: 'studio', tags: ['studio', 'ideas'], pinned: false, ts: now - 3600000 },
+      { id: uid(), title: 'Look into body doubling for focus', body: 'Read something about body doubling helping with ADHD task initiation. Check out Focusmate — virtual co-working sessions that might help with deep work.', folder: 'personal', tags: ['personal', 'adhd'], pinned: false, ts: now - 86400000 },
+    ],
+    todos: [
+      { id: uid(), text: 'Follow up with Mexbruk on final feedback', done: false, due: '', ts: now },
+      { id: uid(), text: 'Send invoice for last project', done: false, due: '', ts: now - 3600000 },
+    ],
+    reminders: [
+      { id: uid(), text: 'Check email for client reply', time: fTime(1), notified: false },
+      { id: uid(), text: 'Take a proper break', time: fTime(3), notified: false },
+    ]
+  };
+  save();
+}
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function fTime(h) { const d = new Date(); d.setHours(d.getHours()+h); return d.toISOString(); }
+
+// ─────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────
+
+function init() {
+  load();
+  renderGreeting();
+  renderAll();
+  registerSW();
+  initPWAInstall();
+  requestNotifPermission();
+  setInterval(checkReminders, 30000);
+  checkReminders();
+  checkOnboarding();
+}
+
+function renderGreeting() {
+  const h = new Date().getHours();
+  document.getElementById('greeting').textContent =
+    h < 12 ? 'Good morning ☀️' : h < 17 ? 'Good afternoon ✦' : 'Good evening 🌙';
+  document.getElementById('today-date').textContent =
+    new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+}
+
+function renderAll() {
+  renderToday();
+  renderNotes();
+  renderTodos();
+  renderReminders();
+}
+
+// ─────────────────────────────────────────────
+//  TODAY
+// ─────────────────────────────────────────────
+
+function renderToday() {
+  const today = new Date().toDateString();
+
+  const todayR = S.reminders.filter(r => new Date(r.time).toDateString() === today);
+  document.getElementById('today-reminders').innerHTML =
+    todayR.length ? todayR.map(reminderHTML).join('') :
+    '<p style="font-size:14px;color:var(--ink3);padding:4px 0">No reminders for today</p>';
+
+  const pending = S.todos.filter(t => !t.done).slice(0,5);
+  document.getElementById('today-todos').innerHTML =
+    pending.length ? pending.map(todoHTML).join('') :
+    '<p style="font-size:14px;color:var(--ink3);padding:4px 0">All clear ✓</p>';
+
+  const recent = [...S.notes].sort((a,b) => b.ts - a.ts).slice(0,3);
+  document.getElementById('today-notes').innerHTML =
+    recent.length ? recent.map(noteCardHTML).join('') :
+    emptyHTML('📝','Nothing yet','Capture your first thought below!');
+}
+
+// ─────────────────────────────────────────────
+//  NOTES
+// ─────────────────────────────────────────────
+
+const FOLDERS = ['all','work','studio','personal','ideas','inbox'];
+let activeFolder = 'all';
+
+function renderNotes() {
+  document.getElementById('folder-filter').innerHTML = FOLDERS.map(f =>
+    `<button class="folder-chip note-tag tag-${f==='all'?'inbox':f} ${activeFolder===f?'active':''}"
+      onclick="filterFolder('${f}')">${f[0].toUpperCase()+f.slice(1)}</button>`
+  ).join('');
+
+  const filtered = activeFolder === 'all' ? S.notes : S.notes.filter(n => n.folder === activeFolder);
+  const sorted = [...filtered].sort((a,b) => (b.pinned?1:0)-(a.pinned?1:0) || b.ts-a.ts);
+  document.getElementById('notes-list').innerHTML =
+    sorted.length ? sorted.map(noteCardHTML).join('') :
+    emptyHTML('📂','No notes here','Capture a thought below!');
+}
+
+function filterFolder(f) { activeFolder = f; renderNotes(); }
+
+// ─────────────────────────────────────────────
+//  TODOS
+// ─────────────────────────────────────────────
+
+function renderTodos() {
+  const pending = S.todos.filter(t => !t.done);
+  const done    = S.todos.filter(t => t.done);
+  let html = '';
+  if (pending.length) html += pending.map(todoHTML).join('');
+  if (done.length)    html += `<div class="section-label" style="margin-top:20px">Completed (${done.length})</div>` + done.map(todoHTML).join('');
+  if (!S.todos.length) html = emptyHTML('✅','Nothing on the list','Add a to-do with the + button');
+  document.getElementById('todos-list').innerHTML = html;
+}
+
+// ─────────────────────────────────────────────
+//  REMINDERS
+// ─────────────────────────────────────────────
+
+function renderReminders() {
+  const sorted = [...S.reminders].sort((a,b) => new Date(a.time)-new Date(b.time));
+  document.getElementById('reminders-list').innerHTML =
+    sorted.length ? sorted.map(r => reminderHTML(r, true)).join('') :
+    emptyHTML('🔔','No reminders','Tap + to set one');
+}
+
+// ─────────────────────────────────────────────
+//  HTML BUILDERS
+// ─────────────────────────────────────────────
+
+function noteCardHTML(n) {
+  return `<div class="note-card ${n.pinned?'pinned':''}" onclick="openNote('${n.id}')">
+    <div class="note-title">${esc(n.title)}</div>
+    <div class="note-body">${esc(n.body)}</div>
+    <div class="note-footer">
+      <span class="note-tag tag-${n.folder||'inbox'}">${n.folder||'inbox'}</span>
+      ${(n.tags||[]).filter(t=>t!==n.folder).map(t=>`<span class="note-tag tag-${t}">${t}</span>`).join('')}
+      <span class="note-time">${ago(n.ts)}</span>
+    </div>
+  </div>`;
+}
+
+function todoHTML(t) {
+  return `<div class="todo-item ${t.done?'done':''}" onclick="toggleTodo('${t.id}')">
+    <div class="todo-check ${t.done?'checked':''}" onclick="toggleTodo('${t.id}');event.stopPropagation()">${t.done?'✓':''}</div>
+    <div style="flex:1">
+      <div class="todo-text ${t.done?'done':''}">${esc(t.text)}</div>
+      ${t.due?`<div class="todo-due">📅 ${fmtDT(t.due)}</div>`:''}
+    </div>
+    <button class="row-del" onclick="deleteTodo('${t.id}');event.stopPropagation()">✕</button>
+  </div>`;
+}
+
+function reminderHTML(r, showDel=false) {
+  const past = new Date(r.time) < new Date();
+  return `<div class="reminder-item ${past?'past':''}">
+    <div style="font-size:18px">${past?'✓':'🔔'}</div>
+    <div style="flex:1">
+      <div class="reminder-text">${esc(r.text)}</div>
+      <div class="reminder-time">${fmtDT(r.time)}</div>
+    </div>
+    ${showDel?`<button class="row-del" onclick="deleteReminder('${r.id}')">✕</button>`:''}
+  </div>`;
+}
+
+function emptyHTML(icon,title,sub) {
+  return `<div class="empty"><div class="empty-icon">${icon}</div><div class="empty-title">${title}</div><div class="empty-sub">${sub}</div></div>`;
+}
+
+// ─────────────────────────────────────────────
+//  CAPTURE
+// ─────────────────────────────────────────────
+
+let captureType = 'note';
+
+function setType(t, el) {
+  captureType = t;
+  document.querySelectorAll('.type-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  const hints = { note:'tap mic to speak or type · ↑ to save', todo:'type your task · ↑ to save', reminder:'type reminder · ↑ to save (time set after)' };
+  document.getElementById('capture-hint').textContent = hints[t];
+  document.getElementById('capture-input').placeholder =
+    t==='note' ? 'Capture a thought…' : t==='todo' ? 'What needs doing?' : 'Remind me to…';
+}
+
+async function capture() {
+  const inp = document.getElementById('capture-input');
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = ''; autoResize(inp);
+
+  if (captureType === 'todo') {
+    S.todos.unshift({ id: uid(), text, done: false, due: '', ts: Date.now() });
+    save(); renderAll(); showToast('✓ To-do added'); return;
+  }
+
+  if (captureType === 'reminder') {
+    openAddSheet('reminder', text); return;
+  }
+
+  // Note — AI tag
+  showToast('✦ Saving…');
+  let title = text.slice(0,60), folder = 'inbox', tags = ['inbox'];
+  const key = getAPIKey();
+  if (key && key !== 'skipped') {
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST', headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body: JSON.stringify({
+          model:'claude-sonnet-4-20250514', max_tokens:200,
+          messages:[{ role:'user', content:
+            `Tag this note. Respond ONLY with valid JSON, no markdown:\n{"title":"max 8 word title","folder":"work|studio|personal|ideas|inbox","tags":["1-3 tags"]}\n\nNote: "${text}"`
+          }]
+        })
+      });
+      const d = await res.json();
+      const p = JSON.parse(d.content[0].text.replace(/```json|```/g,'').trim());
+      title = p.title || title; folder = p.folder || folder; tags = p.tags || tags;
+    } catch(e) {}
+  }
+
+  S.notes.unshift({ id:uid(), title, body:text, folder, tags, pinned:false, ts:Date.now() });
+  save(); renderAll(); showToast(`📂 Saved → ${folder}`);
+}
+
+// ─────────────────────────────────────────────
+//  NOTE DETAIL
+// ─────────────────────────────────────────────
+
+function openNote(id) {
+  const n = S.notes.find(x => x.id===id); if (!n) return;
+  document.getElementById('sheet-note-body').innerHTML = `
+    <div class="note-detail-title">${esc(n.title)}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <span class="note-tag tag-${n.folder}">${n.folder}</span>
+      <span style="font-size:12px;color:var(--ink3)">${ago(n.ts)}</span>
+    </div>
+    <div class="note-detail-body">${esc(n.body)}</div>
+    <div class="note-actions">
+      <button class="note-action-btn" onclick="togglePin('${id}')">📌 ${n.pinned?'Unpin':'Pin'}</button>
+      <button class="note-action-btn" onclick="aiSummarise('${id}')">✦ Summarise</button>
+      <button class="note-action-btn danger" onclick="deleteNote('${id}')">🗑 Delete</button>
+    </div>
+    <div id="note-ai-area" style="margin-top:14px"></div>`;
+  openSheet('sheet-note');
+}
+
+async function aiSummarise(id) {
+  const n = S.notes.find(x => x.id===id); if (!n) return;
+  const el = document.getElementById('note-ai-area');
+  const key = getAPIKey();
+  if (!key || key === 'skipped') {
+    el.innerHTML = '<div class="ai-response">Add an API key to use AI features.</div>'; return;
+  }
+  el.innerHTML = '<div class="ai-response ai-loading">✦ Summarising…</div>';
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:300,
+        messages:[{ role:'user', content:`Briefly summarise this note and suggest 1-2 concrete next actions if relevant. Be concise.\n\nNote: "${n.body}"` }]
+      })
+    });
+    const d = await res.json();
+    if (d.error) throw new Error(d.error.message);
+    el.innerHTML = `<div class="ai-response">${esc(d.content[0].text)}</div>`;
+  } catch(e) { el.innerHTML = `<div class="ai-response">AI error: ${e.message}</div>`; }
+}
+
+function togglePin(id) {
+  const n = S.notes.find(x=>x.id===id); if(!n) return;
+  n.pinned = !n.pinned; save(); renderAll(); closeSheet('sheet-note');
+  showToast(n.pinned ? '📌 Pinned' : 'Unpinned');
+}
+
+function deleteNote(id) {
+  if (!confirm('Delete this note?')) return;
+  S.notes = S.notes.filter(x=>x.id!==id);
+  save(); renderAll(); closeSheet('sheet-note'); showToast('🗑 Deleted');
+}
+
+// ─────────────────────────────────────────────
+//  ADD SHEETS
+// ─────────────────────────────────────────────
+
+function openAddSheet(type, prefill='') {
+  const title = document.getElementById('sheet-add-title');
+  const body  = document.getElementById('sheet-add-body');
+
+  if (type === 'todo') {
+    title.textContent = 'New To-Do';
+    body.innerHTML = `
+      <div class="form-row"><label class="form-label">Task</label>
+        <input class="form-input" id="add-todo-text" placeholder="What needs doing?" value="${esc(prefill)}" /></div>
+      <div class="form-row"><label class="form-label">Due date (optional)</label>
+        <input class="form-input" id="add-todo-due" type="datetime-local" /></div>
+      <button class="submit-btn" onclick="addTodo()">Add To-Do</button>`;
+    openSheet('sheet-add');
+    setTimeout(() => document.getElementById('add-todo-text').focus(), 300);
+  }
+
+  if (type === 'reminder') {
+    title.textContent = 'New Reminder';
+    body.innerHTML = `
+      <div class="form-row"><label class="form-label">Reminder</label>
+        <input class="form-input" id="add-rem-text" placeholder="Remind me to…" value="${esc(prefill)}" /></div>
+      <div class="form-row"><label class="form-label">When</label>
+        <input class="form-input" id="add-rem-time" type="datetime-local" /></div>
+      <button class="submit-btn" onclick="addReminder()">Set Reminder</button>`;
+    openSheet('sheet-add');
+    setTimeout(() => document.getElementById('add-rem-text').focus(), 300);
+  }
+}
+
+function addTodo() {
+  const text = document.getElementById('add-todo-text').value.trim();
+  if (!text) { showToast('Enter a task'); return; }
+  const due = document.getElementById('add-todo-due').value || '';
+  S.todos.unshift({ id:uid(), text, done:false, due, ts:Date.now() });
+  save(); renderAll(); closeSheet('sheet-add'); showToast('✓ To-do added');
+}
+
+function addReminder() {
+  const text = document.getElementById('add-rem-text').value.trim();
+  const time = document.getElementById('add-rem-time').value;
+  if (!text || !time) { showToast('Fill in both fields'); return; }
+  S.reminders.push({ id:uid(), text, time:new Date(time).toISOString(), notified:false });
+  save(); renderAll(); closeSheet('sheet-add'); showToast('🔔 Reminder set');
+}
+
+function toggleTodo(id) {
+  const t = S.todos.find(x=>x.id===id); if(!t) return;
+  t.done = !t.done; save(); renderAll();
+}
+function deleteTodo(id)     { S.todos     = S.todos.filter(x=>x.id!==id); save(); renderAll(); }
+function deleteReminder(id) { S.reminders = S.reminders.filter(x=>x.id!==id); save(); renderAll(); }
+
+// ─────────────────────────────────────────────
+//  REMINDERS CHECK
+// ─────────────────────────────────────────────
+
+function requestNotifPermission() {
+  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+}
+
+function checkReminders() {
+  const now = new Date();
+  S.reminders.forEach(r => {
+    if (!r.notified && new Date(r.time) <= now) {
+      r.notified = true; save();
+      showToast('🔔 ' + r.text);
+      if (Notification.permission === 'granted') new Notification('memo', { body: r.text });
+      renderAll();
+    }
+  });
+}
+
+// ─────────────────────────────────────────────
+//  AI ASK
+// ─────────────────────────────────────────────
+
+function buildContext() {
+  const notes = S.notes.slice(0,40).map(n=>`[${n.folder}] ${n.title}: ${n.body.slice(0,250)}`).join('\n');
+  const todos  = S.todos.filter(t=>!t.done).map(t=>`- ${t.text}`).join('\n');
+  return `User's notes:\n${notes}\n\nPending to-dos:\n${todos}`;
+}
+
+async function callAI(question, targetId) {
+  const el = document.getElementById(targetId);
+  const key = getAPIKey();
+
+  if (!key || key === 'skipped') {
+    el.style.display = 'block';
+    el.className = 'ai-response';
+    el.textContent = 'No API key set. Tap the ✦ button and add your key to enable AI features.';
+    return;
+  }
+
+  el.style.display = 'block'; el.className = 'ai-response ai-loading'; el.textContent = 'Thinking…';
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{'Content-Type':'application/json','x-api-key': key, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514', max_tokens:700,
+        system:`You are a warm, practical personal assistant helping the user understand their own notes and thoughts. Be concise and actionable. The user has ADHD so be clear and structured.\n\n${buildContext()}`,
+        messages:[{ role:'user', content:question }]
+      })
+    });
+    const d = await res.json();
+    if (d.error) throw new Error(d.error.message);
+    el.className = 'ai-response'; el.textContent = d.content[0].text;
+  } catch(e) { el.className = 'ai-response'; el.textContent = 'Could not reach AI: ' + e.message; }
+}
+
+function runAsk() {
+  const q = document.getElementById('ai-query').value.trim(); if(!q) return;
+  callAI(q, 'ai-response');
+}
+
+function quickAsk(btn, q) {
+  document.getElementById('ai-query').value = q;
+  switchView('ask', document.querySelectorAll('.nav-tab')[4]);
+  callAI(q, 'ai-response');
+}
+
+function openAISheet() {
+  document.getElementById('sheet-ai-input').value = '';
+  document.getElementById('sheet-ai-response').style.display = 'none';
+  openSheet('sheet-ai');
+  setTimeout(() => document.getElementById('sheet-ai-input').focus(), 300);
+}
+
+function runSheetAI() {
+  const q = document.getElementById('sheet-ai-input').value.trim(); if(!q) return;
+  callAI(q, 'sheet-ai-response');
+}
+
+// ─────────────────────────────────────────────
+//  SEARCH
+// ─────────────────────────────────────────────
+
+function openSearch() {
+  openSheet('sheet-search');
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-results').innerHTML = '';
+  setTimeout(() => document.getElementById('search-input').focus(), 300);
+}
+
+function liveSearch() {
+  const q = document.getElementById('search-input').value.toLowerCase().trim();
+  const el = document.getElementById('search-results');
+  if (!q) { el.innerHTML = ''; return; }
+  const hits = S.notes.filter(n =>
+    n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q) || (n.tags||[]).join(' ').includes(q)
+  );
+  el.innerHTML = hits.length ? hits.map(noteCardHTML).join('') :
+    '<p style="text-align:center;color:var(--ink3);padding:24px;font-size:14px">No notes found</p>';
+}
+
+// ─────────────────────────────────────────────
+//  VOICE
+// ─────────────────────────────────────────────
+
+let recognition = null, listening = false;
+
+function toggleVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showToast('Voice not supported in this browser'); return; }
+  if (listening) { recognition?.stop(); return; }
+  recognition = new SR();
+  recognition.lang = 'en-GB'; recognition.continuous = false; recognition.interimResults = true;
+  recognition.onstart = () => {
+    listening = true;
+    document.getElementById('voice-btn').classList.add('listening');
+    document.getElementById('voice-btn').textContent = '⏹';
+    document.getElementById('capture-hint').textContent = 'Listening… speak now';
+  };
+  recognition.onresult = e => {
+    const t = Array.from(e.results).map(r=>r[0].transcript).join('');
+    document.getElementById('capture-input').value = t;
+    autoResize(document.getElementById('capture-input'));
+  };
+  recognition.onend = () => {
+    listening = false;
+    document.getElementById('voice-btn').classList.remove('listening');
+    document.getElementById('voice-btn').textContent = '🎙️';
+    document.getElementById('capture-hint').textContent = 'tap mic · type · hit ↑ to save';
+  };
+  recognition.onerror = () => { recognition.onend(); showToast('Voice error — try again'); };
+  recognition.start();
+}
+
+// ─────────────────────────────────────────────
+//  API KEY
+// ─────────────────────────────────────────────
+
+const AK = 'memo_api_key';
+
+function getAPIKey() {
+  return localStorage.getItem(AK) || '';
+}
+
+function saveAPIKey() {
+  const key = document.getElementById('ob-key-input').value.trim();
+  if (!key.startsWith('sk-ant-')) { showToast('That doesn\'t look right — check the key'); return; }
+  localStorage.setItem(AK, key);
+  document.getElementById('onboarding').classList.add('hidden');
+  showToast('✓ API key saved — you\'re all set!');
+}
+
+function skipAPIKey() {
+  localStorage.setItem(AK, 'skipped');
+  document.getElementById('onboarding').classList.add('hidden');
+  showToast('Running without AI — you can add a key in settings');
+}
+
+function checkOnboarding() {
+  const key = getAPIKey();
+  if (!key) {
+    document.getElementById('onboarding').classList.remove('hidden');
+  }
+}
+
+// ─────────────────────────────────────────────
+//  PWA
+// ─────────────────────────────────────────────
+
+let deferredInstall = null;
+
+function registerSW() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+}
+
+function initPWAInstall() {
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault(); deferredInstall = e;
+    document.getElementById('install-banner').classList.add('visible');
+  });
+  window.addEventListener('appinstalled', () => {
+    document.getElementById('install-banner').classList.remove('visible');
+    showToast('✓ memo installed!');
+  });
+}
+
+function installApp() {
+  if (deferredInstall) { deferredInstall.prompt(); deferredInstall = null; }
+}
+
+// ─────────────────────────────────────────────
+//  UTILS
+// ─────────────────────────────────────────────
+
+function switchView(name, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+
+function openSheet(id)  { document.getElementById(id).classList.add('open'); }
+function closeSheet(id) { document.getElementById(id).classList.remove('open'); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast'); t.textContent = msg;
+  t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function ago(ts) {
+  const s = Math.floor((Date.now()-ts)/1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s/60)+'m ago';
+  if (s < 86400) return Math.floor(s/3600)+'h ago';
+  return Math.floor(s/86400)+'d ago';
+}
+
+function fmtDT(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' · ' +
+    d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+
+document.getElementById('capture-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); capture(); }
+});
+
+init();
+</script>
+</body>
+</html>
