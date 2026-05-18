@@ -5,6 +5,8 @@ const ASSETS = [
   '/styles.css',
   '/app.js',
   '/supabase.js',
+  '/notifications.js',
+  '/pomodoro.js',
   '/agents/router.js',
   '/agents/scribe.js',
   '/manifest.json',

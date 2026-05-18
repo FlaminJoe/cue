@@ -81,9 +81,27 @@
   <div class="topbar-right">
     <button class="icon-btn" onclick="openSearch()" title="Szukaj">🔍</button>
     <button class="icon-btn" onclick="openAISheet()" title="Zapytaj AI">✦</button>
+    <button class="icon-btn" onclick="openPomodoroSheet()" title="Pomodoro">🍅</button>
     <button class="icon-btn" onclick="openAddSheet('reminder')" title="Dodaj przypomnienie">🔔</button>
     <button class="icon-btn" onclick="logout()" title="Wyloguj">⏻</button>
   </div>
+</div>
+
+<!-- POMODORO BAR (widoczny gdy timer aktywny) -->
+<div class="pomodoro-bar" id="pomo-bar">
+  <div class="pomodoro-row">
+    <div class="pomodoro-time" id="pomo-time">25:00</div>
+    <div class="pomodoro-meta">
+      <div class="pomodoro-phase" id="pomo-phase">Focus</div>
+      <div class="pomodoro-label" id="pomo-label">—</div>
+    </div>
+    <div class="pomodoro-actions">
+      <button class="pomodoro-btn" id="pomo-toggle" onclick="togglePomodoro()" title="Pauza/Wznów">⏸</button>
+      <button class="pomodoro-btn" onclick="skipPomodoroPhase()" title="Pomiń fazę">⏭</button>
+      <button class="pomodoro-btn" onclick="stopPomodoro()" title="Zakończ">✕</button>
+    </div>
+  </div>
+  <div class="pomodoro-progress"><div class="pomodoro-progress-fill" id="pomo-progress"></div></div>
 </div>
 
 <!-- NAV -->
@@ -213,6 +231,41 @@
   </div>
 </div>
 
+<!-- SHEET: Pomodoro setup -->
+<div class="sheet-overlay" id="sheet-pomodoro" onclick="closeSheet('sheet-pomodoro')">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div class="sheet-title">🍅 Sesja Pomodoro</div>
+      <button class="sheet-close" onclick="closeSheet('sheet-pomodoro')">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="form-row">
+        <label class="form-label">Trwanie</label>
+        <div class="pomo-duration-row" id="pomo-duration-row">
+          <button class="pomo-duration-chip active" data-sec="1500" onclick="setPomoDuration(this,1500)">25 min</button>
+          <button class="pomo-duration-chip" data-sec="2700" onclick="setPomoDuration(this,2700)">45 min</button>
+          <button class="pomo-duration-chip" data-sec="3600" onclick="setPomoDuration(this,3600)">60 min</button>
+          <button class="pomo-duration-chip" data-sec="900" onclick="setPomoDuration(this,900)">15 min</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Nad czym pracujesz? (opcjonalnie)</label>
+        <input class="form-input" id="pomo-label-input" placeholder="np. raport dla klienta" />
+      </div>
+      <div class="form-row">
+        <label class="form-label">Albo przypnij to-do</label>
+        <div class="pomo-todo-list" id="pomo-todo-list"></div>
+      </div>
+      <button class="submit-btn" onclick="startPomodoro()">Start focus</button>
+      <p class="ob-note" id="pomo-notif-hint" style="margin-top:14px;display:none">
+        💡 Włącz powiadomienia, żeby otrzymać alert na końcu sesji.
+        <a class="ob-link" href="#" onclick="requestNotifsExplicit();return false">Włącz teraz</a>
+      </p>
+    </div>
+  </div>
+</div>
+
 <!-- SHEET: AI -->
 <div class="sheet-overlay" id="sheet-ai" onclick="closeSheet('sheet-ai')">
   <div class="sheet" onclick="event.stopPropagation()">
@@ -234,6 +287,8 @@
 <!-- SCRIPTS (kolejność ważna) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="supabase.js"></script>
+<script src="notifications.js"></script>
+<script src="pomodoro.js"></script>
 <script src="agents/router.js"></script>
 <script src="agents/scribe.js"></script>
 <script src="app.js"></script>

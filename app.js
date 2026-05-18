@@ -41,7 +41,8 @@ async function bootstrap() {
   });
   registerSW();
   initPWAInstall();
-  requestNotifPermission();
+  // Notification permission proszony explicit przy pierwszym reminderze/pomodoro,
+  // nie cicho na starcie — mniej nachalnie.
 
   // Czekamy na INITIAL_SESSION event — sygnał że klient Supabase załadował sesję ze storage
   // i jest gotowy do query z poprawnym auth.uid(). Bez tego query mogą lecieć bez tokena
@@ -79,6 +80,7 @@ async function onSignedIn(user) {
   _signInInFlight = true;
   try {
     userId = user.id;
+    window.__cueUserId = userId; // dla pomodoro.js (zapis sesji)
     hide('auth-screen');
 
     let settings;
@@ -101,6 +103,7 @@ async function onSignedIn(user) {
 
 async function onSignedOut() {
   userId = null;
+  window.__cueUserId = null;
   apiKey = null;
   S = { notes: [], todos: [], reminders: [] };
   hide('onboarding');
@@ -120,6 +123,7 @@ async function afterAuthReady() {
   await loadFromCloud();
   await maybeMigrateFromLocalStorage();
   renderAll();
+  initPomodoroUI();
   setInterval(checkReminders, 30000);
   checkReminders();
 }
@@ -537,6 +541,7 @@ async function addReminder() {
     const r = await CueDB.Reminders.create(userId, { text, time: iso });
     S.reminders.push(r);
     renderAll(); closeSheet('sheet-add'); showToast('🔔 Ustawione');
+    if (Notify.supported() && Notify.state === 'default') Notify.request();
   } catch (e) { showToast('Błąd: ' + e.message); }
 }
 
@@ -569,10 +574,6 @@ async function deleteReminder(id) {
 //  REMINDERS CHECK
 // ─────────────────────────────────────────────
 
-function requestNotifPermission() {
-  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
-}
-
 async function checkReminders() {
   if (!userId) return;
   const now = new Date();
@@ -581,9 +582,7 @@ async function checkReminders() {
       r.notified = true;
       try { await CueDB.Reminders.update(r.id, userId, { notified: true }); } catch {}
       showToast('🔔 ' + r.text);
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('Cue', { body: r.text });
-      }
+      Notify.show('Cue — przypomnienie', { body: r.text, tag: 'cue-reminder' });
       renderAll();
     }
   }
@@ -708,6 +707,177 @@ function toggleVoice() {
   };
   recognition.onerror = () => { recognition.onend(); showToast('Błąd głosu — spróbuj ponownie'); };
   recognition.start();
+}
+
+// ─────────────────────────────────────────────
+//  POMODORO
+// ─────────────────────────────────────────────
+
+let pomoSelectedDurationSec = 25 * 60;
+let pomoSelectedTodoId = null;
+
+const POMO_PHASE_LABELS = {
+  focus: 'Focus',
+  break: 'Przerwa',
+  long_break: 'Długa przerwa',
+  paused: 'Pauza',
+};
+
+function initPomodoroUI() {
+  Pomodoro.on('onTick', (state, left) => renderPomoBar(state, left));
+  Pomodoro.on('onChange', state => {
+    if (state) renderPomoBar(state, Pomodoro.remaining());
+    else hidePomoBar();
+  });
+  Pomodoro.on('onPhaseEnd', (finished, completed) => onPomodoroPhaseEnd(finished, completed));
+  Pomodoro.init();
+  if (Pomodoro.isActive()) renderPomoBar(Pomodoro.state, Pomodoro.remaining());
+}
+
+function renderPomoBar(state, leftSec) {
+  const bar = document.getElementById('pomo-bar');
+  bar.classList.add('active');
+  bar.classList.remove('phase-break', 'phase-long_break');
+
+  const realPhase = state.phase === 'paused' ? state.prePausePhase : state.phase;
+  if (realPhase === 'break') bar.classList.add('phase-break');
+  else if (realPhase === 'long_break') bar.classList.add('phase-long_break');
+
+  const mm = String(Math.floor(leftSec / 60)).padStart(2, '0');
+  const ss = String(leftSec % 60).padStart(2, '0');
+  document.getElementById('pomo-time').textContent = `${mm}:${ss}`;
+
+  document.getElementById('pomo-phase').textContent =
+    POMO_PHASE_LABELS[state.phase] || POMO_PHASE_LABELS[realPhase] || 'Focus';
+
+  let label = state.label || '';
+  if (state.todoId) {
+    const todo = S.todos.find(t => t.id === state.todoId);
+    if (todo) label = todo.text;
+  }
+  document.getElementById('pomo-label').textContent = label || '—';
+
+  const pct = state.durationSec > 0 ? (1 - leftSec / state.durationSec) * 100 : 0;
+  document.getElementById('pomo-progress').style.width = pct + '%';
+
+  document.getElementById('pomo-toggle').textContent = Pomodoro.isPaused() ? '▶' : '⏸';
+}
+
+function hidePomoBar() {
+  document.getElementById('pomo-bar').classList.remove('active');
+}
+
+function openPomodoroSheet() {
+  pomoSelectedDurationSec = 25 * 60;
+  pomoSelectedTodoId = null;
+  const labelInp = document.getElementById('pomo-label-input');
+  if (labelInp) labelInp.value = '';
+
+  document.querySelectorAll('.pomo-duration-chip').forEach(c => c.classList.remove('active'));
+  const defaultChip = document.querySelector('.pomo-duration-chip[data-sec="1500"]');
+  if (defaultChip) defaultChip.classList.add('active');
+
+  const pending = S.todos.filter(t => !t.done);
+  const list = document.getElementById('pomo-todo-list');
+  list.innerHTML = pending.length
+    ? pending.map(t =>
+        `<div class="pomo-todo-option" data-id="${t.id}" onclick="setPomoTodo(this,'${t.id}')">${esc(t.text)}</div>`
+      ).join('')
+    : '<div class="pomo-todo-empty">Brak otwartych to-do</div>';
+
+  const hint = document.getElementById('pomo-notif-hint');
+  hint.style.display = Notify.supported() && Notify.state !== 'granted' ? 'block' : 'none';
+
+  openSheet('sheet-pomodoro');
+}
+
+function setPomoDuration(el, sec) {
+  pomoSelectedDurationSec = sec;
+  document.querySelectorAll('.pomo-duration-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function setPomoTodo(el, id) {
+  if (pomoSelectedTodoId === id) {
+    pomoSelectedTodoId = null;
+    el.classList.remove('active');
+    return;
+  }
+  pomoSelectedTodoId = id;
+  document.querySelectorAll('.pomo-todo-option').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+async function requestNotifsExplicit() {
+  const state = await Notify.request();
+  if (state === 'granted') {
+    showToast('✓ Powiadomienia włączone');
+    document.getElementById('pomo-notif-hint').style.display = 'none';
+  } else if (state === 'denied') {
+    showToast(Notify.howToReenable());
+  } else if (state === 'unsupported') {
+    showToast('Powiadomienia nie wspierane w tej przeglądarce');
+  }
+}
+
+function startPomodoro() {
+  const labelInp = document.getElementById('pomo-label-input');
+  const label = labelInp ? labelInp.value.trim() || null : null;
+  Pomodoro.start({
+    durationSec: pomoSelectedDurationSec,
+    todoId: pomoSelectedTodoId,
+    label: pomoSelectedTodoId ? null : label,
+  });
+  closeSheet('sheet-pomodoro');
+  showToast('🍅 Focus rozpoczęty');
+  if (Notify.supported() && Notify.state === 'default') Notify.request();
+}
+
+function togglePomodoro() {
+  if (Pomodoro.isPaused()) Pomodoro.resume();
+  else Pomodoro.pause();
+}
+
+function skipPomodoroPhase() {
+  Pomodoro.skipPhase();
+}
+
+function stopPomodoro() {
+  if (!confirm('Zakończyć sesję? Postęp tej fazy nie zostanie zapisany.')) return;
+  Pomodoro.reset();
+}
+
+function onPomodoroPhaseEnd(finished, wasCompleted) {
+  if (!wasCompleted) return;
+  const phaseLabel = finished.phase === 'focus'
+    ? 'Sesja focus skończona'
+    : finished.phase === 'long_break'
+      ? 'Długa przerwa skończona'
+      : 'Przerwa skończona';
+  const body = finished.phase === 'focus'
+    ? 'Czas na przerwę. Wstań, napij się wody.'
+    : 'Wracaj do focus.';
+  Notify.show(phaseLabel, { body, tag: 'cue-pomodoro' });
+  showToast('✦ ' + phaseLabel);
+  playChirp();
+}
+
+function playChirp() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    osc.type = 'sine';
+    const t0 = ctx.currentTime;
+    gain.gain.setValueAtTime(0.001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.18, t0 + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.45);
+    osc.start(t0);
+    osc.stop(t0 + 0.5);
+    setTimeout(() => ctx.close(), 600);
+  } catch {}
 }
 
 // ─────────────────────────────────────────────
