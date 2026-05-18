@@ -1,0 +1,16 @@
+-- ─────────────────────────────────────────────
+-- Cue — Supabase schema
+-- ─────────────────────────────────────────────
+-- Status: PLACEHOLDER (Etap 1 refactoru). Wypełniamy w Etapie 2.
+--
+-- Etap 2 zawiera:
+--   • Tabele: notes, todos, reminders, user_settings, agent_queue, pomodoro_sessions
+--   • RLS policies (auth.uid() = user_id) na wszystkich
+--   • Trigger handle_updated_at()
+--   • Trigger handle_new_user() — auto-tworzy rekord w user_settings
+--
+-- Do uruchomienia w Supabase Dashboard → SQL Editor.
+-- Przed uruchomieniem: sprawdzić co już jest w bazie (lista tabel w schema 'public').
+-- ─────────────────────────────────────────────
+
+-- TODO Etap 2: wypełnić zgodnie z dokumentacją w CLAUDE.md (sekcja 5)

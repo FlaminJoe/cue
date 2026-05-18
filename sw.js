@@ -1,7 +1,12 @@
-const CACHE_NAME = 'memo-v1';
+const CACHE_NAME = 'cue-v1';
 const ASSETS = [
   '/',
   '/index.html',
+  '/styles.css',
+  '/app.js',
+  '/supabase.js',
+  '/agents/router.js',
+  '/agents/scribe.js',
   '/manifest.json',
   'https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap'
 ];
@@ -40,7 +45,7 @@ self.addEventListener('fetch', e => {
 
 // Push notifications
 self.addEventListener('push', e => {
-  const data = e.data?.json() || { title: 'memo reminder', body: '' };
+  const data = e.data?.json() || { title: 'Cue', body: '' };
   e.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
