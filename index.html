@@ -17,6 +17,36 @@
 </head>
 <body>
 
+<!-- AUTH SCREEN — magic link login -->
+<div class="onboarding hidden" id="auth-screen">
+  <div class="ob-logo">Cue</div>
+  <div class="ob-tagline">Twój ciepły, ADHD-friendly second brain</div>
+
+  <div class="ob-card" id="auth-card-form">
+    <div class="ob-step">Zaloguj się</div>
+    <div class="ob-text">
+      Wpisz email — wyślemy ci magic link. Klikniesz, wrócisz tutaj zalogowany.
+      Bez haseł, bez zakładania kont.
+    </div>
+    <input class="ob-input" id="auth-email" type="email" placeholder="ty@example.com" autocomplete="email" />
+    <button class="ob-btn" onclick="sendMagicLink()">Wyślij magic link</button>
+    <p class="ob-note" id="auth-error" style="color:var(--red);display:none"></p>
+    <p class="ob-note">🔒 Twoje notatki są szyfrowane i widoczne tylko dla Ciebie (Row Level Security).</p>
+  </div>
+
+  <div class="ob-card" id="auth-card-sent" style="display:none">
+    <div class="ob-step">✦ Sprawdź email</div>
+    <div class="ob-text">
+      Wysłaliśmy magic link na <strong id="auth-sent-email"></strong>.
+      Otwórz email i kliknij link — wrócisz tutaj zalogowany.
+    </div>
+    <div class="ob-text" style="font-size:13px;color:var(--ink3)">
+      Nie ma maila? Sprawdź spam. Albo
+      <a class="ob-link" href="#" onclick="resetAuthCard();return false">spróbuj innego adresu</a>.
+    </div>
+  </div>
+</div>
+
 <!-- ONBOARDING / API KEY SETUP -->
 <div class="onboarding hidden" id="onboarding">
   <div class="ob-logo">Cue</div>
@@ -52,6 +82,7 @@
     <button class="icon-btn" onclick="openSearch()" title="Szukaj">🔍</button>
     <button class="icon-btn" onclick="openAISheet()" title="Zapytaj AI">✦</button>
     <button class="icon-btn" onclick="openAddSheet('reminder')" title="Dodaj przypomnienie">🔔</button>
+    <button class="icon-btn" onclick="logout()" title="Wyloguj">⏻</button>
   </div>
 </div>
 

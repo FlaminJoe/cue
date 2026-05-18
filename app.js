@@ -4,13 +4,15 @@
  * Cue — główna logika aplikacji.
  * Stan, render, capture flow, Ask AI, voice, search, reminders check, PWA install, onboarding.
  *
- * Zależy od: Scribe (agents/scribe.js), Router (agents/router.js), CueDB (supabase.js — placeholder w Etapie 1)
+ * Zależy od: Scribe (agents/scribe.js), Router (agents/router.js), CueDB (supabase.js)
  * Używany przez: index.html (jako ostatni skrypt, po wszystkich zależnościach)
  *
- * Stan v1.0 (Etap 1 refactoru):
- *   - persistencja: localStorage (klucze `memo_v2` + `memo_api_key` — kompatybilność wstecz)
- *   - auth: brak (Etap 2)
- *   - Pomodoro: brak (Etap 3)
+ * Flow startu (Etap 2 — auth-first):
+ *   1. CueDB.Auth.getUser() → null → ekran logowania (magic link)
+ *   2. User klika link w mailu → wraca → onAuthChange → ponowny boot
+ *   3. Settings.get(userId) → api_key === null → ekran onboardingu klucza Claude API
+ *   4. Migracja z localStorage `memo_v2` jeśli Supabase puste a localStorage ma dane
+ *   5. Aplikacja
  */
 
 // ─────────────────────────────────────────────
@@ -18,62 +20,236 @@
 // ─────────────────────────────────────────────
 
 const MODEL_SMART = 'claude-sonnet-4-6';
-const SK = 'memo_v2';         // localStorage key dla state (zachowane dla kompatybilności wstecz)
-const AK = 'memo_api_key';    // localStorage key dla Claude API key
+const LEGACY_STATE_KEY  = 'memo_v2';      // dane z czasów localStorage (migracja jednorazowa)
+const LEGACY_API_KEY    = 'memo_api_key'; // klucz API z czasów localStorage
 
 // ─────────────────────────────────────────────
-//  STATE & PERSISTENCE
+//  STATE (w pamięci, synchronizowane z Supabase)
 // ─────────────────────────────────────────────
 
+let userId = null;
+let apiKey = null;
 let S = { notes: [], todos: [], reminders: [] };
 
-function save() {
-  try { localStorage.setItem(SK, JSON.stringify(S)); } catch(e) {}
-}
-
-function load() {
-  try {
-    const d = localStorage.getItem(SK);
-    if (d) { S = JSON.parse(d); return; }
-  } catch(e) {}
-  // Seed pierwsza wizyta
-  const now = Date.now();
-  S = {
-    notes: [
-      { id: uid(), title: 'Witaj w Cue', body: 'Łap myśli na żywo — dotknij mikrofonu i powiedz, albo pisz poniżej. AI auto-taguje wszystko, żebyś nie musiał porządkować ręcznie.', folder: 'inbox', tags: ['inbox'], pinned: true, ts: now - 60000 },
-      { id: uid(), title: 'Studio pomysł — animowane mapy', body: 'Można zaoferować animowane mapy zasięgu (SVG) jako upsell dla klientów lokalnych. Mexbruk to potencjalny szablon.', folder: 'studio', tags: ['studio', 'ideas'], pinned: false, ts: now - 3600000 },
-      { id: uid(), title: 'Sprawdzić body doubling', body: 'Coś o body doubling jako technice pomocniczej dla ADHD przy inicjacji zadań. Focusmate — wirtualny co-working.', folder: 'personal', tags: ['personal', 'adhd'], pinned: false, ts: now - 86400000 },
-    ],
-    todos: [
-      { id: uid(), text: 'Domknąć feedback Mexbruk', done: false, due: '', ts: now },
-      { id: uid(), text: 'Wysłać fakturę za ostatni projekt', done: false, due: '', ts: now - 3600000 },
-    ],
-    reminders: [
-      { id: uid(), text: 'Sprawdzić maila — odpowiedź od klienta', time: fTime(1), notified: false },
-      { id: uid(), text: 'Zrób porządną przerwę', time: fTime(3), notified: false },
-    ]
-  };
-  save();
-}
-
-function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
-function fTime(h) { const d = new Date(); d.setHours(d.getHours()+h); return d.toISOString(); }
-
 // ─────────────────────────────────────────────
-//  INIT
+//  BOOTSTRAP
 // ─────────────────────────────────────────────
 
-function init() {
-  load();
-  renderGreeting();
-  renderAll();
+async function bootstrap() {
+  document.getElementById('capture-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); capture(); }
+  });
   registerSW();
   initPWAInstall();
   requestNotifPermission();
+
+  // Czekamy na INITIAL_SESSION event — sygnał że klient Supabase załadował sesję ze storage
+  // i jest gotowy do query z poprawnym auth.uid(). Bez tego query mogą lecieć bez tokena
+  // i RLS odda null zamiast danych.
+  let initialFired = false;
+  await new Promise(resolve => {
+    CueDB.Auth.onAuthChange(async (event, session) => {
+      if (event === 'INITIAL_SESSION') {
+        initialFired = true;
+        if (session?.user) onSignedIn(session.user);
+        else showAuthScreen();
+        resolve();
+        return;
+      }
+      if (event === 'SIGNED_IN' && session?.user && userId !== session.user.id) {
+        onSignedIn(session.user);
+        return;
+      }
+      if (event === 'SIGNED_OUT') {
+        onSignedOut();
+      }
+    });
+    // Bezpiecznik: tylko jeśli INITIAL_SESSION naprawdę nie dotarł w 3s.
+    setTimeout(() => {
+      if (!initialFired) { showAuthScreen(); resolve(); }
+    }, 3000);
+  });
+}
+
+let _signInInFlight = false;
+
+async function onSignedIn(user) {
+  if (_signInInFlight) return;
+  if (userId === user.id && apiKey) return; // już zalogowany i gotowy
+  _signInInFlight = true;
+  try {
+    userId = user.id;
+    hide('auth-screen');
+
+    let settings;
+    try { settings = await CueDB.Settings.get(userId); }
+    catch (e) { showToast('Błąd Supabase: ' + e.message); return; }
+
+    apiKey = settings.api_key || null;
+    window.__cue = { userId, apiKey, settings, S }; // pomoc do debug w DevTools
+
+    if (!apiKey) {
+      show('onboarding');
+      return;
+    }
+
+    await afterAuthReady();
+  } finally {
+    _signInInFlight = false;
+  }
+}
+
+async function onSignedOut() {
+  userId = null;
+  apiKey = null;
+  S = { notes: [], todos: [], reminders: [] };
+  hide('onboarding');
+  showAuthScreen();
+}
+
+function showAuthScreen() {
+  show('auth-screen');
+  hide('onboarding');
+  resetAuthCard();
+}
+
+/** Wywoływane gdy user jest zalogowany i ma klucz API. */
+async function afterAuthReady() {
+  hide('onboarding');
+  renderGreeting();
+  await loadFromCloud();
+  await maybeMigrateFromLocalStorage();
+  renderAll();
   setInterval(checkReminders, 30000);
   checkReminders();
-  checkOnboarding();
 }
+
+// ─────────────────────────────────────────────
+//  AUTH UI
+// ─────────────────────────────────────────────
+
+async function sendMagicLink() {
+  const email = document.getElementById('auth-email').value.trim();
+  const errEl = document.getElementById('auth-error');
+  errEl.style.display = 'none';
+  if (!email || !email.includes('@')) {
+    errEl.textContent = 'Wpisz poprawny email.';
+    errEl.style.display = 'block';
+    return;
+  }
+  try {
+    await CueDB.Auth.signInWithEmail(email);
+    document.getElementById('auth-sent-email').textContent = email;
+    document.getElementById('auth-card-form').style.display = 'none';
+    document.getElementById('auth-card-sent').style.display = 'block';
+  } catch (e) {
+    errEl.textContent = 'Nie udało się wysłać: ' + (e.message || 'nieznany błąd');
+    errEl.style.display = 'block';
+  }
+}
+
+function resetAuthCard() {
+  document.getElementById('auth-card-form').style.display = 'block';
+  document.getElementById('auth-card-sent').style.display = 'none';
+  const errEl = document.getElementById('auth-error');
+  if (errEl) errEl.style.display = 'none';
+}
+
+async function logout() {
+  try {
+    await CueDB.Auth.signOut();
+    onSignedOut(); // bezpośrednio, bez polegania na evencie (Supabase czasem nie dispatcha)
+  } catch (e) {
+    showToast('Błąd wylogowania: ' + e.message);
+  }
+}
+
+// ─────────────────────────────────────────────
+//  DATA LOAD (z Supabase do pamięci)
+// ─────────────────────────────────────────────
+
+async function loadFromCloud() {
+  try {
+    const [notes, todos, reminders] = await Promise.all([
+      CueDB.Notes.getAll(userId),
+      CueDB.Todos.getAll(userId),
+      CueDB.Reminders.getAll(userId),
+    ]);
+    S = { notes, todos, reminders };
+  } catch (e) {
+    showToast('Nie mogę załadować danych: ' + e.message);
+    S = { notes: [], todos: [], reminders: [] };
+  }
+}
+
+// ─────────────────────────────────────────────
+//  MIGRACJA Z localStorage (jednorazowa)
+// ─────────────────────────────────────────────
+
+async function maybeMigrateFromLocalStorage() {
+  const migratedKey = `cue_migrated_${userId}`;
+  if (localStorage.getItem(migratedKey)) return;
+
+  const raw = localStorage.getItem(LEGACY_STATE_KEY);
+  if (!raw) {
+    if (S.notes.length === 0 && S.todos.length === 0 && S.reminders.length === 0) {
+      await seedNewUser();
+    }
+    localStorage.setItem(migratedKey, '1');
+    return;
+  }
+
+  // Migrujemy tylko jeśli chmura jest pusta — nie nadpisujemy istniejących danych.
+  if (S.notes.length > 0 || S.todos.length > 0 || S.reminders.length > 0) {
+    localStorage.setItem(migratedKey, '1');
+    return;
+  }
+
+  let legacy;
+  try { legacy = JSON.parse(raw); } catch { return; }
+
+  showToast('✦ Migruję dane z poprzedniej wersji…');
+  try {
+    for (const n of (legacy.notes || [])) {
+      await CueDB.Notes.create(userId, {
+        title: n.title, body: n.body, folder: n.folder, tags: n.tags, pinned: !!n.pinned,
+      });
+    }
+    for (const t of (legacy.todos || [])) {
+      await CueDB.Todos.create(userId, { text: t.text, done: !!t.done, due: t.due || null });
+    }
+    for (const r of (legacy.reminders || [])) {
+      await CueDB.Reminders.create(userId, { text: r.text, time: r.time, notified: !!r.notified });
+    }
+    localStorage.setItem(migratedKey, '1');
+    localStorage.removeItem(LEGACY_API_KEY);
+    showToast('✓ Migracja zakończona');
+    await loadFromCloud();
+  } catch (e) {
+    showToast('Migracja niepełna: ' + e.message);
+  }
+}
+
+async function seedNewUser() {
+  try {
+    await CueDB.Notes.create(userId, {
+      title: 'Witaj w Cue',
+      body: 'Łap myśli na żywo — dotknij mikrofonu i powiedz, albo pisz poniżej. AI auto-taguje wszystko, żebyś nie musiał porządkować ręcznie.',
+      folder: 'inbox', tags: ['inbox'], pinned: true,
+    });
+    await CueDB.Notes.create(userId, {
+      title: 'Pierwsza notatka — pomysł studio',
+      body: 'Możesz tu zapisać szybką myśl. Cue automatycznie zaproponuje folder i tagi.',
+      folder: 'studio', tags: ['studio', 'ideas'], pinned: false,
+    });
+    await CueDB.Todos.create(userId, { text: 'Spróbuj dodać swoje pierwsze to-do', done: false });
+    await loadFromCloud();
+  } catch (e) { /* nieblokujące */ }
+}
+
+// ─────────────────────────────────────────────
+//  RENDER
+// ─────────────────────────────────────────────
 
 function renderGreeting() {
   const h = new Date().getHours();
@@ -90,13 +266,8 @@ function renderAll() {
   renderReminders();
 }
 
-// ─────────────────────────────────────────────
-//  TODAY
-// ─────────────────────────────────────────────
-
 function renderToday() {
   const today = new Date().toDateString();
-
   const todayR = S.reminders.filter(r => new Date(r.time).toDateString() === today);
   document.getElementById('today-reminders').innerHTML =
     todayR.length ? todayR.map(reminderHTML).join('') :
@@ -112,10 +283,6 @@ function renderToday() {
     recent.length ? recent.map(noteCardHTML).join('') :
     emptyHTML('📝','Jeszcze nic','Złap pierwszą myśl poniżej!');
 }
-
-// ─────────────────────────────────────────────
-//  NOTES
-// ─────────────────────────────────────────────
 
 const FOLDERS = ['all','work','studio','personal','ideas','inbox'];
 let activeFolder = 'all';
@@ -135,10 +302,6 @@ function renderNotes() {
 
 function filterFolder(f) { activeFolder = f; renderNotes(); }
 
-// ─────────────────────────────────────────────
-//  TODOS
-// ─────────────────────────────────────────────
-
 function renderTodos() {
   const pending = S.todos.filter(t => !t.done);
   const done    = S.todos.filter(t => t.done);
@@ -148,10 +311,6 @@ function renderTodos() {
   if (!S.todos.length) html = emptyHTML('✅','Pusta lista','Dodaj to-do przyciskiem +');
   document.getElementById('todos-list').innerHTML = html;
 }
-
-// ─────────────────────────────────────────────
-//  REMINDERS
-// ─────────────────────────────────────────────
 
 function renderReminders() {
   const sorted = [...S.reminders].sort((a,b) => new Date(a.time)-new Date(b.time));
@@ -224,26 +383,35 @@ function setType(t, el) {
 }
 
 async function capture() {
+  if (!userId) { showToast('Sesja wygasła — zaloguj się ponownie'); return; }
   const inp = document.getElementById('capture-input');
   const text = inp.value.trim();
   if (!text) return;
   inp.value = ''; autoResize(inp);
 
   if (captureType === 'todo') {
-    S.todos.unshift({ id: uid(), text, done: false, due: '', ts: Date.now() });
-    save(); renderAll(); showToast('✓ Dodane'); return;
+    try {
+      const t = await CueDB.Todos.create(userId, { text });
+      S.todos.unshift(t);
+      renderAll(); showToast('✓ Dodane');
+    } catch (e) { showToast('Błąd: ' + e.message); }
+    return;
   }
 
   if (captureType === 'reminder') {
     openAddSheet('reminder', text); return;
   }
 
-  // Note — Scribe tagowanie (Haiku)
+  // Notatka — Scribe tagowanie (Haiku)
   showToast('✦ Zapisuję…');
-  const { title, folder, tags } = await Scribe.process(text, getAPIKey());
-
-  S.notes.unshift({ id:uid(), title, body:text, folder, tags, pinned:false, ts:Date.now() });
-  save(); renderAll(); showToast(`📂 Zapisane → ${folder}`);
+  const tagged = await Scribe.process(text, apiKey || '');
+  try {
+    const n = await CueDB.Notes.create(userId, {
+      title: tagged.title, body: text, folder: tagged.folder, tags: tagged.tags, pinned: false,
+    });
+    S.notes.unshift(n);
+    renderAll(); showToast(`📂 Zapisane → ${n.folder}`);
+  } catch (e) { showToast('Błąd: ' + e.message); }
 }
 
 // ─────────────────────────────────────────────
@@ -271,8 +439,7 @@ function openNote(id) {
 async function aiSummarise(id) {
   const n = S.notes.find(x => x.id===id); if (!n) return;
   const el = document.getElementById('note-ai-area');
-  const key = getAPIKey();
-  if (!key || key === 'skipped') {
+  if (!apiKey || apiKey === 'skipped') {
     el.innerHTML = '<div class="ai-response">Dodaj klucz API, żeby używać funkcji AI.</div>'; return;
   }
   el.innerHTML = '<div class="ai-response ai-loading">✦ Podsumowuję…</div>';
@@ -281,7 +448,7 @@ async function aiSummarise(id) {
       method:'POST',
       headers:{
         'Content-Type':'application/json',
-        'x-api-key':key,
+        'x-api-key':apiKey,
         'anthropic-version':'2023-06-01',
         'anthropic-dangerous-direct-browser-access':'true'
       },
@@ -297,16 +464,23 @@ async function aiSummarise(id) {
   } catch(e) { el.innerHTML = `<div class="ai-response">Błąd AI: ${e.message}</div>`; }
 }
 
-function togglePin(id) {
+async function togglePin(id) {
   const n = S.notes.find(x=>x.id===id); if(!n) return;
-  n.pinned = !n.pinned; save(); renderAll(); closeSheet('sheet-note');
-  showToast(n.pinned ? '📌 Przypięte' : 'Odpięte');
+  try {
+    const updated = await CueDB.Notes.update(id, userId, { pinned: !n.pinned });
+    Object.assign(n, updated);
+    renderAll(); closeSheet('sheet-note');
+    showToast(n.pinned ? '📌 Przypięte' : 'Odpięte');
+  } catch (e) { showToast('Błąd: ' + e.message); }
 }
 
-function deleteNote(id) {
+async function deleteNote(id) {
   if (!confirm('Usunąć tę notatkę?')) return;
-  S.notes = S.notes.filter(x=>x.id!==id);
-  save(); renderAll(); closeSheet('sheet-note'); showToast('🗑 Usunięte');
+  try {
+    await CueDB.Notes.delete(id, userId);
+    S.notes = S.notes.filter(x=>x.id!==id);
+    renderAll(); closeSheet('sheet-note'); showToast('🗑 Usunięte');
+  } catch (e) { showToast('Błąd: ' + e.message); }
 }
 
 // ─────────────────────────────────────────────
@@ -342,28 +516,54 @@ function openAddSheet(type, prefill='') {
   }
 }
 
-function addTodo() {
+async function addTodo() {
   const text = document.getElementById('add-todo-text').value.trim();
   if (!text) { showToast('Wpisz zadanie'); return; }
-  const due = document.getElementById('add-todo-due').value || '';
-  S.todos.unshift({ id:uid(), text, done:false, due, ts:Date.now() });
-  save(); renderAll(); closeSheet('sheet-add'); showToast('✓ Dodane');
+  const dueRaw = document.getElementById('add-todo-due').value || null;
+  const due = dueRaw ? new Date(dueRaw).toISOString() : null;
+  try {
+    const t = await CueDB.Todos.create(userId, { text, due });
+    S.todos.unshift(t);
+    renderAll(); closeSheet('sheet-add'); showToast('✓ Dodane');
+  } catch (e) { showToast('Błąd: ' + e.message); }
 }
 
-function addReminder() {
+async function addReminder() {
   const text = document.getElementById('add-rem-text').value.trim();
   const time = document.getElementById('add-rem-time').value;
   if (!text || !time) { showToast('Wypełnij oba pola'); return; }
-  S.reminders.push({ id:uid(), text, time:new Date(time).toISOString(), notified:false });
-  save(); renderAll(); closeSheet('sheet-add'); showToast('🔔 Ustawione');
+  const iso = new Date(time).toISOString();
+  try {
+    const r = await CueDB.Reminders.create(userId, { text, time: iso });
+    S.reminders.push(r);
+    renderAll(); closeSheet('sheet-add'); showToast('🔔 Ustawione');
+  } catch (e) { showToast('Błąd: ' + e.message); }
 }
 
-function toggleTodo(id) {
+async function toggleTodo(id) {
   const t = S.todos.find(x=>x.id===id); if(!t) return;
-  t.done = !t.done; save(); renderAll();
+  try {
+    const updated = await CueDB.Todos.update(id, userId, { done: !t.done });
+    Object.assign(t, updated);
+    renderAll();
+  } catch (e) { showToast('Błąd: ' + e.message); }
 }
-function deleteTodo(id)     { S.todos     = S.todos.filter(x=>x.id!==id); save(); renderAll(); }
-function deleteReminder(id) { S.reminders = S.reminders.filter(x=>x.id!==id); save(); renderAll(); }
+
+async function deleteTodo(id) {
+  try {
+    await CueDB.Todos.delete(id, userId);
+    S.todos = S.todos.filter(x=>x.id!==id);
+    renderAll();
+  } catch (e) { showToast('Błąd: ' + e.message); }
+}
+
+async function deleteReminder(id) {
+  try {
+    await CueDB.Reminders.delete(id, userId);
+    S.reminders = S.reminders.filter(x=>x.id!==id);
+    renderAll();
+  } catch (e) { showToast('Błąd: ' + e.message); }
+}
 
 // ─────────────────────────────────────────────
 //  REMINDERS CHECK
@@ -373,18 +573,20 @@ function requestNotifPermission() {
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
 }
 
-function checkReminders() {
+async function checkReminders() {
+  if (!userId) return;
   const now = new Date();
-  S.reminders.forEach(r => {
+  for (const r of S.reminders) {
     if (!r.notified && new Date(r.time) <= now) {
-      r.notified = true; save();
+      r.notified = true;
+      try { await CueDB.Reminders.update(r.id, userId, { notified: true }); } catch {}
       showToast('🔔 ' + r.text);
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification('Cue', { body: r.text });
       }
       renderAll();
     }
-  });
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -399,12 +601,11 @@ function buildContext() {
 
 async function callAI(question, targetId) {
   const el = document.getElementById(targetId);
-  const key = getAPIKey();
 
-  if (!key || key === 'skipped') {
+  if (!apiKey || apiKey === 'skipped') {
     el.style.display = 'block';
     el.className = 'ai-response';
-    el.textContent = 'Brak klucza API. Dotknij ✦ w prawym górnym i dodaj klucz, żeby włączyć funkcje AI.';
+    el.textContent = 'Brak klucza API. Dodaj klucz w ustawieniach, żeby włączyć funkcje AI.';
     return;
   }
 
@@ -414,7 +615,7 @@ async function callAI(question, targetId) {
       method:'POST',
       headers:{
         'Content-Type':'application/json',
-        'x-api-key': key,
+        'x-api-key': apiKey,
         'anthropic-version':'2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true'
       },
@@ -510,32 +711,29 @@ function toggleVoice() {
 }
 
 // ─────────────────────────────────────────────
-//  API KEY
+//  API KEY (przechowywany w Supabase user_settings)
 // ─────────────────────────────────────────────
 
-function getAPIKey() {
-  return localStorage.getItem(AK) || '';
-}
-
-function saveAPIKey() {
+async function saveAPIKey() {
   const key = document.getElementById('ob-key-input').value.trim();
   if (!key.startsWith('sk-ant-')) { showToast('Klucz nie wygląda poprawnie — sprawdź'); return; }
-  localStorage.setItem(AK, key);
-  document.getElementById('onboarding').classList.add('hidden');
-  showToast('✓ Klucz zapisany — gotowe!');
+  try {
+    await CueDB.Settings.setApiKey(userId, key);
+    apiKey = key;
+    hide('onboarding');
+    showToast('✓ Klucz zapisany — gotowe!');
+    await afterAuthReady();
+  } catch (e) { showToast('Błąd zapisu klucza: ' + e.message); }
 }
 
-function skipAPIKey() {
-  localStorage.setItem(AK, 'skipped');
-  document.getElementById('onboarding').classList.add('hidden');
-  showToast('Działamy bez AI — klucz dodasz w ustawieniach');
-}
-
-function checkOnboarding() {
-  const key = getAPIKey();
-  if (!key) {
-    document.getElementById('onboarding').classList.remove('hidden');
-  }
+async function skipAPIKey() {
+  try {
+    await CueDB.Settings.setApiKey(userId, 'skipped');
+    apiKey = 'skipped';
+    hide('onboarding');
+    showToast('Działamy bez AI — klucz dodasz w ustawieniach');
+    await afterAuthReady();
+  } catch (e) { showToast('Błąd: ' + e.message); }
 }
 
 // ─────────────────────────────────────────────
@@ -545,9 +743,19 @@ function checkOnboarding() {
 let deferredInstall = null;
 
 function registerSW() {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  // W dev (localhost) NIE rejestrujemy SW — cache'uje skrypty i blokuje zmiany.
+  // Dodatkowo wyrejestrowujemy istniejące, na wypadek gdy zostały z wcześniejszej sesji.
+  const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
+  if (!('serviceWorker' in navigator)) return;
+
+  if (isLocal) {
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      regs.forEach(r => r.unregister());
+    }).catch(() => {});
+    return;
   }
+
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
 function initPWAInstall() {
@@ -578,6 +786,9 @@ function switchView(name, btn) {
 
 function openSheet(id)  { document.getElementById(id).classList.add('open'); }
 function closeSheet(id) { document.getElementById(id).classList.remove('open'); }
+
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden'); }
 
 function showToast(msg) {
   const t = document.getElementById('toast'); t.textContent = msg;
@@ -610,13 +821,6 @@ function fmtDT(iso) {
 // ─────────────────────────────────────────────
 //  STARTUP
 // ─────────────────────────────────────────────
-
-function bootstrap() {
-  document.getElementById('capture-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); capture(); }
-  });
-  init();
-}
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', bootstrap);
