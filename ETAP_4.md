@@ -70,14 +70,14 @@ Otwórz: <http://localhost:8765>
 - [ ] `git status` — sprawdź modyfikacje
 - [ ] `git add -A`
 - [ ] `git commit -m "feat: edit + priorities + PiP pomodoro (Etap 4)"`
-- [ ] `git push origin develop`
-- [ ] Merge `develop` → `main` (przez GitHub UI lub `git checkout main && git merge develop && git push`)
-- [ ] Vercel auto-deploy odpali
+- [x] `git push origin develop`
+- [x] Merge `develop` → `main` (przez GitHub UI lub `git checkout main && git merge develop && git push`)
+- [x] Vercel auto-deploy odpali
 
 ### 4. Supabase — URL config dla produkcji
 - [ ] Authentication → URL Configuration
-- [ ] Site URL: zmień na `https://me-mo-personal-assistant.vercel.app`
-- [ ] Redirect URLs: dodaj `https://me-mo-personal-assistant.vercel.app` i `https://me-mo-personal-assistant.vercel.app/**`
+- [ ] Site URL: zmień na nowy URL Vercela (sprawdź w panelu Vercel → projekt Cue)
+- [ ] Redirect URLs: dodaj nowy URL Vercela i `<nowy-url>/**`
 - [ ] (Zostaw też localhost dla devu)
 
 ### 5. Mobile sync
