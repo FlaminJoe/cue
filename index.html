@@ -83,11 +83,11 @@
     <button class="icon-btn" onclick="openAISheet()" title="Zapytaj AI">✦</button>
     <button class="icon-btn" onclick="openPomodoroSheet()" title="Pomodoro">🍅</button>
     <button class="icon-btn" onclick="openAddSheet('reminder')" title="Dodaj przypomnienie">🔔</button>
-    <button class="icon-btn" onclick="logout()" title="Wyloguj">⏻</button>
+    <button class="icon-btn" onclick="openSettings()" title="Ustawienia">⚙</button>
   </div>
 </div>
 
-<!-- POMODORO BAR (widoczny gdy timer aktywny) -->
+<!-- POMODORO BAR (mobile sticky) -->
 <div class="pomodoro-bar" id="pomo-bar">
   <div class="pomodoro-row">
     <div class="pomodoro-time" id="pomo-time">25:00</div>
@@ -104,11 +104,30 @@
   <div class="pomodoro-progress"><div class="pomodoro-progress-fill" id="pomo-progress"></div></div>
 </div>
 
+<!-- POMODORO FLOATING WIDGET (desktop, draggable, opcjonalnie pop-out do PiP) -->
+<div class="pomodoro-float" id="pomo-float" role="region" aria-label="Pomodoro timer">
+  <div class="pomodoro-float-drag" id="pomo-float-drag" title="Przeciągnij">⋮⋮</div>
+  <div class="pomodoro-float-body">
+    <div class="pomodoro-float-time" id="pomo-float-time">25:00</div>
+    <div class="pomodoro-float-meta">
+      <span class="pomodoro-float-phase" id="pomo-float-phase">Focus</span>
+      <span class="pomodoro-float-label" id="pomo-float-label">—</span>
+    </div>
+    <div class="pomodoro-float-actions">
+      <button class="pomodoro-float-btn" id="pomo-float-toggle" onclick="togglePomodoro()" title="Pauza/Wznów">⏸</button>
+      <button class="pomodoro-float-btn" onclick="skipPomodoroPhase()" title="Pomiń">⏭</button>
+      <button class="pomodoro-float-btn" id="pomo-float-pip" onclick="popOutPomodoro()" title="Pop-out (always on top)">⇱</button>
+      <button class="pomodoro-float-btn" onclick="stopPomodoro()" title="Zakończ">✕</button>
+    </div>
+  </div>
+  <div class="pomodoro-float-progress"><div class="pomodoro-float-progress-fill" id="pomo-float-progress"></div></div>
+</div>
+
 <!-- NAV -->
 <div class="nav">
   <button class="nav-tab active" onclick="switchView('today',this)">Dziś</button>
   <button class="nav-tab" onclick="switchView('notes',this)">Notatki</button>
-  <button class="nav-tab" onclick="switchView('todos',this)">To-Do</button>
+  <button class="nav-tab" onclick="switchView('todos',this)">Zadania</button>
   <button class="nav-tab" onclick="switchView('reminders',this)">Przypomnienia</button>
   <button class="nav-tab" onclick="switchView('ask',this)">Zapytaj AI</button>
 </div>
@@ -122,7 +141,7 @@
     <div class="today-date" id="today-date"></div>
     <div class="section-label">Przypomnienia na dziś</div>
     <div id="today-reminders"></div>
-    <div class="section-label">To-Do</div>
+    <div class="section-label">Zadania</div>
     <div id="today-todos"></div>
     <div class="section-label">Ostatnie notatki</div>
     <div id="today-notes"></div>
@@ -134,12 +153,13 @@
     <div id="notes-list"></div>
   </div>
 
-  <!-- TODOS -->
+  <!-- TASKS -->
   <div id="view-todos" class="view">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-      <div style="font-family:'Lora',serif;font-size:20px;font-weight:500">To-Do</div>
+      <div style="font-family:'Lora',serif;font-size:20px;font-weight:500">Zadania</div>
       <button class="icon-btn" onclick="openAddSheet('todo')" style="background:var(--accent);color:white;font-size:20px">+</button>
     </div>
+    <div class="priority-filter" id="priority-filter"></div>
     <div id="todos-list"></div>
   </div>
 
@@ -178,9 +198,10 @@
 <div class="capture-area">
   <div class="type-row">
     <button class="type-chip active" id="type-note"     onclick="setType('note',this)">📝 Notatka</button>
-    <button class="type-chip"        id="type-todo"     onclick="setType('todo',this)">✓ To-Do</button>
+    <button class="type-chip"        id="type-todo"     onclick="setType('todo',this)">✓ Zadanie</button>
     <button class="type-chip"        id="type-reminder" onclick="setType('reminder',this)">🔔 Przypomnij</button>
   </div>
+  <input class="capture-title" id="capture-title" placeholder="Tytuł (opcjonalny — AI nada sam)" />
   <div class="capture-row">
     <button class="capture-voice" id="voice-btn" onclick="toggleVoice()">🎙️</button>
     <textarea class="capture-input" id="capture-input" placeholder="Złap myśl…" rows="1" oninput="autoResize(this)"></textarea>
@@ -263,6 +284,18 @@
         <a class="ob-link" href="#" onclick="requestNotifsExplicit();return false">Włącz teraz</a>
       </p>
     </div>
+  </div>
+</div>
+
+<!-- SHEET: Settings -->
+<div class="sheet-overlay" id="sheet-settings" onclick="closeSheet('sheet-settings')">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div class="sheet-title">⚙ Ustawienia</div>
+      <button class="sheet-close" onclick="closeSheet('sheet-settings')">✕</button>
+    </div>
+    <div class="sheet-body" id="sheet-settings-body"></div>
   </div>
 </div>
 

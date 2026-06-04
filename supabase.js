@@ -31,6 +31,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
 const toNote = r => r && ({
   id: r.id,
   title: r.title,
+  titleAuto: r.title_auto !== false,    // true gdy Scribe nadał automatycznie
   body: r.body || '',
   folder: r.folder,
   tags: r.tags || [],
@@ -43,6 +44,7 @@ const toTodo = r => r && ({
   text: r.text,
   done: !!r.done,
   due: r.due || '',
+  priority: r.priority || null,         // 'low' | 'medium' | 'high' | null
   ts: Date.parse(r.created_at),
 });
 
@@ -118,10 +120,10 @@ const Notes = {
     return (data || []).map(toNote);
   },
 
-  async create(userId, { title, body, folder = 'inbox', tags = [], pinned = false }) {
+  async create(userId, { title, body, folder = 'inbox', tags = [], pinned = false, titleAuto = true }) {
     const { data, error } = await db
       .from('notes')
-      .insert({ user_id: userId, title, body, folder, tags, pinned })
+      .insert({ user_id: userId, title, body, folder, tags, pinned, title_auto: titleAuto })
       .select()
       .single();
     if (error) throw error;
@@ -130,6 +132,9 @@ const Notes = {
 
   async update(id, userId, fields) {
     const allowed = ['title', 'body', 'folder', 'tags', 'pinned'];
+    // mapowanie camelCase → snake_case
+    if ('titleAuto' in fields) fields.title_auto = fields.titleAuto;
+    allowed.push('title_auto');
     const payload = {};
     for (const k of allowed) if (k in fields) payload[k] = fields[k];
     const { data, error } = await db
@@ -164,10 +169,10 @@ const Todos = {
     return (data || []).map(toTodo);
   },
 
-  async create(userId, { text, done = false, due = null }) {
+  async create(userId, { text, done = false, due = null, priority = null }) {
     const { data, error } = await db
       .from('todos')
-      .insert({ user_id: userId, text, done, due: due || null })
+      .insert({ user_id: userId, text, done, due: due || null, priority })
       .select()
       .single();
     if (error) throw error;
@@ -175,7 +180,7 @@ const Todos = {
   },
 
   async update(id, userId, fields) {
-    const allowed = ['text', 'done', 'due'];
+    const allowed = ['text', 'done', 'due', 'priority'];
     const payload = {};
     for (const k of allowed) if (k in fields) payload[k] = fields[k] === '' ? null : fields[k];
     const { data, error } = await db

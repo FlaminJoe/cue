@@ -1,9 +1,24 @@
 # Cue — Project Documentation
-> Last updated: 2026-05-18 | Status: Active development | Version: 1.0-refactor
+> Last updated: 2026-05-29 | Status: Active development | Version: 1.0-etap4
 
 ---
 
-## ⚡ Status implementacji (po Etapie 1 refactoru, 2026-05-18)
+## ⚡ Status implementacji (po Etapie 4, 2026-05-29)
+
+**Etap 4 (edycja + tasks + always-on-top Pomodoro) zrobiony na branchu `develop`:**
+- Edycja notatek inline (tytuł, body, folder) w bottom sheet — `editNote`/`saveNote`
+- Opcjonalny tytuł notatki przy capture; jeśli puste → Scribe generuje (flag `title_auto` w DB)
+- Karty notatek nie pokazują autogen tytułu (tylko body) — ręczny tytuł jest eksponowany
+- Rebrand UI: "To-Do" → "Zadania" wszędzie (tabela `todos` w DB bez zmian)
+- 3 priorytety zadań (low/medium/high) z kolorowym paskiem z lewej i pill-em
+- Filter zadań po priorytecie + sortowanie (priority → due → ts)
+- Edycja zadań i przypomnień w tym samym sheet (tryb `editingTodoId`/`editingReminderId`)
+- Pomodoro: floating widget w prawym górnym rogu na desktopie (draggable), sticky bar na mobile
+- Pomodoro Pop-out → Document Picture-in-Picture API (Chrome/Edge 116+) — realny always-on-top
+- Settings sheet zastąpił sam ⏻: zmiana API key, status powiadomień, instrukcja sync mobile, wyloguj
+- Migracja schema: `notes.title_auto` boolean, `todos.priority` enum (idempotentne w `schema.sql`)
+
+**Co działa od Etapu 3:**
 
 **Co działa już teraz (w branchu `develop`):**
 - Monolit `index.html` rozbity na: `styles.css`, `app.js`, `supabase.js` (placeholder), `agents/router.js`, `agents/scribe.js`
@@ -297,14 +312,17 @@ inbox     → niebieski (#7090a8)
 | Notatki — detail | ✅ działa | bottom sheet |
 | Notatki — pin | ✅ działa | |
 | Notatki — delete | ✅ działa | |
-| Notatki — edit | ❌ brak | planowane v1.5 |
+| Notatki — edit | ✅ działa | Etap 4 — inline w sheet |
+| Notatki — opcjonalny tytuł | ✅ działa | Etap 4 — `title_auto` flag |
 | Summarise notatki | ✅ działa | Sonnet |
-| To-Do — widok | ✅ działa | pending + done |
-| To-Do — toggle | ✅ działa | |
-| To-Do — delete | ✅ działa | |
-| To-Do — due date | ✅ działa | |
-| To-Do — edit | ❌ brak | planowane v1.5 |
+| Zadania — widok | ✅ działa | pending + done, filter po priority |
+| Zadania — toggle | ✅ działa | |
+| Zadania — delete | ✅ działa | |
+| Zadania — due date | ✅ działa | |
+| Zadania — edit | ✅ działa | Etap 4 |
+| Zadania — priorytet | ✅ działa | Etap 4 — low/medium/high |
 | Przypomnienia | ✅ działa | co-minutowy check |
+| Przypomnienia — edit | ✅ działa | Etap 4 |
 | Push notifications | ⚠️ częściowe | wymaga HTTPS + permission |
 | Ask AI | ✅ działa | max 40 notatek w kontekście |
 | Szybkie prompty | ✅ działa | 4 gotowe pytania |
@@ -341,12 +359,13 @@ inbox     → niebieski (#7090a8)
 
 ## 11. Roadmap
 
-### v1.5 — Drobne ulepszenia (najbliższe)
-- [ ] Edycja notatek inline
-- [ ] Edycja to-do i przypomnień
-- [ ] Timer Pomodoro — pływający widget w rogu (nie odwracający uwagi)
-- [ ] Migracja na nowe klucze Supabase (`sb_publishable_...`)
-- [ ] Ustawienia użytkownika (zmiana klucza API, język voice)
+### v1.5 — Drobne ulepszenia
+- [x] Edycja notatek inline ✅ Etap 4
+- [x] Edycja to-do i przypomnień ✅ Etap 4
+- [x] Timer Pomodoro — pływający widget w rogu ✅ Etap 4 (+ PiP pop-out)
+- [x] Migracja na nowe klucze Supabase (`sb_publishable_...`) ✅ Etap 2
+- [x] Ustawienia użytkownika (zmiana klucza API) ✅ Etap 4
+- [ ] Język voice (na razie hardcoded pl-PL)
 
 ### v2 — Właściwa architektura
 - [ ] **React + Vite** — refactor całego frontendu
@@ -373,21 +392,20 @@ inbox     → niebieski (#7090a8)
 
 ---
 
-## 12. Pomodoro timer — decyzja projektowa
+## 12. Pomodoro timer — decyzja projektowa (rozwiązane w Etapie 4)
 
-Użytkownik chce timer Pomodoro z funkcją "always on top" (jak PowerToys w Windows).
+Użytkownik chciał timer Pomodoro z funkcją "always on top".
 
-**Problem:** PWA w przeglądarce nie może systemowo przypiąć okna nad inne aplikacje — to funkcja systemowa, nie webowa.
+**Rozwiązanie (Etap 4):** trzypoziomowa strategia, decydowana automatycznie:
 
-**Dwie opcje:**
+1. **Sticky top bar** — mobile (`max-width: 899px` lub `pointer: coarse`)
+2. **Floating widget w prawym górnym rogu** — desktop, draggable, pozycja zapisywana w localStorage
+3. **Pop-out → Document Picture-in-Picture** — Chrome/Edge 116+, prawdziwy always-on-top na poziomie OS
 
-**A) Timer w PWA** (prostszy, dziś)
-Pływający widget w rogu ekranu gdy Cue jest otwarte. Skrót klawiaturowy pokazuje/chowa. Minimalistyczny, zero distraction design. Działa na każdym urządzeniu.
+Implementacja w `app.js` (`renderPomoBar` / `renderPomoFloat` / `renderPomoPiP`).
+Silnik (`pomodoro.js`) bez zmian — to czysta warstwa prezentacji.
 
-**B) Osobna aplikacja desktopowa** (właściwe "always on top")
-Tauri lub Electron — małe okno systemowe przypięte nad wszystkim. Skrót klawiaturowy jak PowerToys. Wymaga instalacji. Dobry kandydat na osobne repo lub moduł w v3.
-
-**Rekomendacja:** Opcja A jako szybkie rozwiązanie, Opcja B jako cel długoterminowy (v3).
+**Fallback dla niewspierających PiP:** floating widget zostaje. Dla v3 nadal otwarty pomysł osobnej apki Tauri (full systemowe always-on-top + global hotkey).
 
 ---
 

@@ -1,8 +1,9 @@
 -- ─────────────────────────────────────────────
--- Cue — Supabase schema (Etap 2)
+-- Cue — Supabase schema (Etap 2 + Etap 4 migration)
 -- ─────────────────────────────────────────────
 -- Uruchomienie:  Supabase Dashboard → SQL Editor → wklej całość → Run.
--- Idempotentne — można puścić ponownie (drop if exists na koniec sekcji policies/triggers).
+-- Idempotentne — można puścić ponownie (drop if exists / add column if not exists).
+-- Etap 4 dodaje todos.priority — bez utraty istniejących danych.
 -- ─────────────────────────────────────────────
 
 -- ── 1. TABELE ────────────────────────────────
@@ -11,6 +12,7 @@ create table if not exists public.notes (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users(id) on delete cascade,
   title       text not null,
+  title_auto  boolean not null default true,    -- true = wygenerowany przez Scribe, false = wpisany przez usera
   body        text not null default '',
   folder      text not null default 'inbox'
               check (folder in ('work','studio','personal','ideas','inbox')),
@@ -19,6 +21,8 @@ create table if not exists public.notes (
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
+-- Migracja inline (Etap 4): wszystkie istniejące tytuły zakładamy że to autogen Scribe
+alter table public.notes add column if not exists title_auto boolean not null default true;
 create index if not exists notes_user_id_idx on public.notes(user_id);
 create index if not exists notes_created_at_idx on public.notes(created_at desc);
 
@@ -28,10 +32,22 @@ create table if not exists public.todos (
   text        text not null,
   done        boolean not null default false,
   due         timestamptz,
+  priority    text check (priority in ('low','medium','high')),
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
+-- Migracja inline dla istniejących baz (priority dodane w Etapie 4)
+alter table public.todos add column if not exists priority text;
+do $$ begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'todos_priority_check'
+  ) then
+    alter table public.todos
+      add constraint todos_priority_check check (priority in ('low','medium','high'));
+  end if;
+end $$;
 create index if not exists todos_user_id_idx on public.todos(user_id);
+create index if not exists todos_priority_idx on public.todos(priority);
 
 create table if not exists public.reminders (
   id          uuid primary key default gen_random_uuid(),
