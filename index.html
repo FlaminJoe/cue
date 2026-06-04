@@ -262,12 +262,22 @@
     </div>
     <div class="sheet-body">
       <div class="form-row">
-        <label class="form-label">Trwanie</label>
+        <label class="form-label">Trwanie focusu</label>
         <div class="pomo-duration-row" id="pomo-duration-row">
           <button class="pomo-duration-chip active" data-sec="1500" onclick="setPomoDuration(this,1500)">25 min</button>
           <button class="pomo-duration-chip" data-sec="2700" onclick="setPomoDuration(this,2700)">45 min</button>
           <button class="pomo-duration-chip" data-sec="3600" onclick="setPomoDuration(this,3600)">60 min</button>
           <button class="pomo-duration-chip" data-sec="900" onclick="setPomoDuration(this,900)">15 min</button>
+          <input class="pomo-custom-input" id="pomo-focus-custom" type="number" min="1" max="180" placeholder="własna" oninput="setPomoCustomDuration(this)">
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Trwanie przerwy</label>
+        <div class="pomo-duration-row" id="pomo-break-row">
+          <button class="pomo-break-chip active" data-sec="300" onclick="setPomoBreak(this,300)">5 min</button>
+          <button class="pomo-break-chip" data-sec="600" onclick="setPomoBreak(this,600)">10 min</button>
+          <button class="pomo-break-chip" data-sec="900" onclick="setPomoBreak(this,900)">15 min</button>
+          <input class="pomo-custom-input" id="pomo-break-custom" type="number" min="1" max="60" placeholder="własna" oninput="setPomoCustomBreak(this)">
         </div>
       </div>
       <div class="form-row">

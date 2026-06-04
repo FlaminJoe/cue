@@ -975,6 +975,7 @@ function toggleVoice() {
 // ─────────────────────────────────────────────
 
 let pomoSelectedDurationSec = 25 * 60;
+let pomoSelectedBreakSec = 5 * 60;
 let pomoSelectedTodoId = null;
 
 const POMO_PHASE_LABELS = {
@@ -1230,6 +1231,7 @@ function closePomoPiP() {
 
 function openPomodoroSheet() {
   pomoSelectedDurationSec = 25 * 60;
+  pomoSelectedBreakSec = 5 * 60;
   pomoSelectedTodoId = null;
   const labelInp = document.getElementById('pomo-label-input');
   if (labelInp) labelInp.value = '';
@@ -1237,6 +1239,15 @@ function openPomodoroSheet() {
   document.querySelectorAll('.pomo-duration-chip').forEach(c => c.classList.remove('active'));
   const defaultChip = document.querySelector('.pomo-duration-chip[data-sec="1500"]');
   if (defaultChip) defaultChip.classList.add('active');
+
+  document.querySelectorAll('.pomo-break-chip').forEach(c => c.classList.remove('active'));
+  const defaultBreakChip = document.querySelector('.pomo-break-chip[data-sec="300"]');
+  if (defaultBreakChip) defaultBreakChip.classList.add('active');
+
+  const focusCustom = document.getElementById('pomo-focus-custom');
+  if (focusCustom) focusCustom.value = '';
+  const breakCustom = document.getElementById('pomo-break-custom');
+  if (breakCustom) breakCustom.value = '';
 
   const pending = S.todos.filter(t => !t.done);
   const list = document.getElementById('pomo-todo-list');
@@ -1256,6 +1267,30 @@ function setPomoDuration(el, sec) {
   pomoSelectedDurationSec = sec;
   document.querySelectorAll('.pomo-duration-chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
+  const custom = document.getElementById('pomo-focus-custom');
+  if (custom) custom.value = '';
+}
+
+function setPomoBreak(el, sec) {
+  pomoSelectedBreakSec = sec;
+  document.querySelectorAll('.pomo-break-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  const custom = document.getElementById('pomo-break-custom');
+  if (custom) custom.value = '';
+}
+
+function setPomoCustomDuration(el) {
+  const min = parseInt(el.value);
+  if (!min || min < 1) return;
+  pomoSelectedDurationSec = min * 60;
+  document.querySelectorAll('.pomo-duration-chip').forEach(c => c.classList.remove('active'));
+}
+
+function setPomoCustomBreak(el) {
+  const min = parseInt(el.value);
+  if (!min || min < 1) return;
+  pomoSelectedBreakSec = min * 60;
+  document.querySelectorAll('.pomo-break-chip').forEach(c => c.classList.remove('active'));
 }
 
 function setPomoTodo(el, id) {
@@ -1282,10 +1317,15 @@ async function requestNotifsExplicit() {
 }
 
 function startPomodoro() {
+  if (Pomodoro.isActive()) {
+    if (!confirm('Timer już działa. Zatrzymać i zacząć nowy?')) return;
+    Pomodoro.reset();
+  }
   const labelInp = document.getElementById('pomo-label-input');
   const label = labelInp ? labelInp.value.trim() || null : null;
   Pomodoro.start({
     durationSec: pomoSelectedDurationSec,
+    breakSec: pomoSelectedBreakSec,
     todoId: pomoSelectedTodoId,
     label: pomoSelectedTodoId ? null : label,
   });

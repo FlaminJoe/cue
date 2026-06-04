@@ -73,11 +73,12 @@ const Pomodoro = {
    * Startuje nowy cykl focus.
    * @param {object} opts { durationSec?, todoId?, label? }
    */
-  start({ durationSec = this.FOCUS_SEC, todoId = null, label = null } = {}) {
+  start({ durationSec = this.FOCUS_SEC, breakSec = this.BREAK_SEC, todoId = null, label = null } = {}) {
     this.state = {
       phase: 'focus',
       startedAtMs: Date.now(),
       durationSec,
+      breakSec,
       todoId,
       label,
       completedFocusCycles: 0,
@@ -172,7 +173,7 @@ const Pomodoro = {
     if (finished.phase === 'focus') {
       const isLong = cycles > 0 && cycles % this.CYCLES_BEFORE_LONG === 0;
       nextPhase = isLong ? 'long_break' : 'break';
-      nextDuration = isLong ? this.LONG_BREAK_SEC : this.BREAK_SEC;
+      nextDuration = isLong ? this.LONG_BREAK_SEC : (finished.breakSec || this.BREAK_SEC);
     } else {
       nextPhase = 'focus';
       nextDuration = this.FOCUS_SEC;
@@ -182,6 +183,7 @@ const Pomodoro = {
       phase: nextPhase,
       startedAtMs: Date.now(),
       durationSec: nextDuration,
+      breakSec: finished.breakSec,
       todoId: finished.todoId,
       label: finished.label,
       completedFocusCycles: cycles,
