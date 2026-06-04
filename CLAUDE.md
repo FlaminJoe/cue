@@ -72,7 +72,7 @@ Działająca PWA z notatkami, to-do, przypomnieniami i pytaniami do AI. Właśni
 ## 3. Repozytorium i deployment
 
 - **GitHub:** `https://github.com/FlaminJoe/cue`
-- **Vercel:** sprawdź aktualny URL w panelu Vercel (po rename repo)
+- **Vercel:** `https://me-mo-personal-assistant.vercel.app` (domena .vercel.app nie zmienia się przy rename projektu)
 - **Supabase Project URL:** `https://ekifvlwkxqxwswroispu.supabase.co`
 - **Supabase Region:** Europe (Frankfurt)
 
@@ -249,7 +249,7 @@ Główna aplikacja
 ```
 
 **Ważna konfiguracja Supabase:**
-- Authentication → URL Configuration → Site URL: nowy URL Vercela (sprawdź w panelu)
+- Authentication → URL Configuration → Site URL: `https://me-mo-personal-assistant.vercel.app`
 - Redirect URLs musi zawierać ten sam URL
 
 **Klucz Claude API:**
