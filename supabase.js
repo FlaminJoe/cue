@@ -45,7 +45,17 @@ const toTodo = r => r && ({
   done: !!r.done,
   due: r.due || '',
   priority: r.priority || null,         // 'low' | 'medium' | 'high' | null
+  customFields: r.custom_fields || {},  // { [fieldId]: { kind, label, value } }
   ts: Date.parse(r.created_at),
+});
+
+const toShare = r => r && ({
+  id: r.id,
+  todoIds: r.todo_ids || [],
+  title: r.title || '',
+  revoked: !!r.revoked,
+  expiresAt: r.expires_at,
+  createdAt: r.created_at,
 });
 
 const toReminder = r => r && ({
@@ -169,10 +179,10 @@ const Todos = {
     return (data || []).map(toTodo);
   },
 
-  async create(userId, { text, done = false, due = null, priority = null }) {
+  async create(userId, { text, done = false, due = null, priority = null, customFields = {} }) {
     const { data, error } = await db
       .from('todos')
-      .insert({ user_id: userId, text, done, due: due || null, priority })
+      .insert({ user_id: userId, text, done, due: due || null, priority, custom_fields: customFields })
       .select()
       .single();
     if (error) throw error;
@@ -181,6 +191,8 @@ const Todos = {
 
   async update(id, userId, fields) {
     const allowed = ['text', 'done', 'due', 'priority'];
+    if ('customFields' in fields) fields.custom_fields = fields.customFields;
+    allowed.push('custom_fields');
     const payload = {};
     for (const k of allowed) if (k in fields) payload[k] = fields[k] === '' ? null : fields[k];
     const { data, error } = await db
@@ -197,6 +209,55 @@ const Todos = {
   async delete(id, userId) {
     const { error } = await db.from('todos').delete().eq('id', id).eq('user_id', userId);
     if (error) throw error;
+  },
+};
+
+// ─────────────────────────────────────────────
+//  SHARES (Etap 5 — link do udostępnienia zadań, bez logowania)
+// ─────────────────────────────────────────────
+
+const Shares = {
+  async listForUser(userId) {
+    const { data, error } = await db
+      .from('shares')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map(toShare);
+  },
+
+  async create(userId, { todoIds, title = null }) {
+    const { data, error } = await db
+      .from('shares')
+      .insert({ user_id: userId, todo_ids: todoIds, title })
+      .select()
+      .single();
+    if (error) throw error;
+    return toShare(data);
+  },
+
+  async revoke(id, userId) {
+    const { error } = await db
+      .from('shares')
+      .update({ revoked: true })
+      .eq('id', id)
+      .eq('user_id', userId);
+    if (error) throw error;
+  },
+
+  /** Publiczny odczyt — bez auth, przez security definer RPC. Patrz schema.sql sekcja 4. */
+  async getPublic(token) {
+    const [{ data: meta, error: e1 }, { data: todos, error: e2 }] = await Promise.all([
+      db.rpc('get_share_meta', { p_token: token }),
+      db.rpc('get_shared_todos', { p_token: token }),
+    ]);
+    if (e1 || e2 || !meta || !meta.length) return null;
+    return {
+      title: meta[0].title || '',
+      expiresAt: meta[0].expires_at,
+      todos: (todos || []).map(toTodo),
+    };
   },
 };
 
@@ -332,4 +393,4 @@ const AgentQueue = {
   },
 };
 
-window.CueDB = { Auth, Notes, Todos, Reminders, Settings, PomodoroSessions, AgentQueue, _db: db };
+window.CueDB = { Auth, Notes, Todos, Shares, Reminders, Settings, PomodoroSessions, AgentQueue, _db: db };

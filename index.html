@@ -10,6 +10,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="description" content="Cue — ciepły, nierozpraszający second brain. Notatki, to-do, przypomnienia i AI w jednej PWA.">
 <link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <title>Cue</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -157,10 +159,14 @@
   <div id="view-todos" class="view">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div style="font-family:'Lora',serif;font-size:20px;font-weight:500">Zadania</div>
-      <button class="icon-btn" onclick="openAddSheet('todo')" style="background:var(--accent);color:white;font-size:20px">+</button>
+      <div style="display:flex;gap:8px">
+        <button class="icon-btn" onclick="toggleShareMode()" title="Udostępnij">🔗</button>
+        <button class="icon-btn" onclick="openAddSheet('todo')" style="background:var(--accent);color:white;font-size:20px">+</button>
+      </div>
     </div>
     <div class="priority-filter" id="priority-filter"></div>
     <div id="todos-list"></div>
+    <div id="share-bar" class="share-bar" style="display:none"></div>
   </div>
 
   <!-- REMINDERS -->
@@ -234,6 +240,18 @@
       <button class="sheet-close" onclick="closeSheet('sheet-add')">✕</button>
     </div>
     <div class="sheet-body" id="sheet-add-body"></div>
+  </div>
+</div>
+
+<!-- SHEET: Share link -->
+<div class="sheet-overlay" id="sheet-share" onclick="closeSheet('sheet-share')">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div class="sheet-title" id="sheet-share-title">Udostępnij</div>
+      <button class="sheet-close" onclick="closeSheet('sheet-share')">✕</button>
+    </div>
+    <div class="sheet-body" id="sheet-share-body"></div>
   </div>
 </div>
 

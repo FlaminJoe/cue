@@ -30,6 +30,8 @@ const LEGACY_API_KEY    = 'memo_api_key'; // klucz API z czasów localStorage
 let userId = null;
 let apiKey = null;
 let S = { notes: [], todos: [], reminders: [] };
+let shareMode = false;
+let selectedForShare = new Set();
 
 // ─────────────────────────────────────────────
 //  BOOTSTRAP
@@ -355,6 +357,98 @@ function renderTodos() {
   document.getElementById('todos-list').innerHTML = html;
 }
 
+// ─────────────────────────────────────────────
+//  UDOSTĘPNIANIE (Etap 5) — link bez logowania, tylko-do-odczytu
+// ─────────────────────────────────────────────
+
+function toggleShareMode() {
+  shareMode = !shareMode;
+  selectedForShare = new Set();
+  renderTodos();
+  renderShareBar();
+}
+
+function toggleShareSelect(id) {
+  if (selectedForShare.has(id)) selectedForShare.delete(id);
+  else selectedForShare.add(id);
+  renderTodos();
+  renderShareBar();
+}
+
+function renderShareBar() {
+  const bar = document.getElementById('share-bar');
+  if (!shareMode) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  bar.style.display = 'flex';
+  const n = selectedForShare.size;
+  bar.innerHTML = `
+    <button class="cancel-btn" onclick="toggleShareMode()">Anuluj</button>
+    <button class="submit-btn" ${n===0?'disabled':''} onclick="openShareCreate()">Udostępnij (${n})</button>`;
+}
+
+function openShareCreate() {
+  document.getElementById('sheet-share-title').textContent = 'Udostępnij zadania';
+  document.getElementById('sheet-share-body').innerHTML = `
+    <div class="form-row"><label class="form-label">Tytuł (opcjonalnie, widoczny dla odbiorcy)</label>
+      <input class="form-input" id="share-title-input" placeholder="np. Plan projektu X" /></div>
+    <button class="submit-btn" onclick="confirmCreateShare()">Generuj link</button>`;
+  openSheet('sheet-share');
+}
+
+async function confirmCreateShare() {
+  const title = document.getElementById('share-title-input').value.trim() || null;
+  try {
+    const share = await CueDB.Shares.create(userId, { todoIds: [...selectedForShare], title });
+    toggleShareMode();
+    showShareResult(share);
+  } catch (e) { showToast('Błąd: ' + e.message); }
+}
+
+function showShareResult(share) {
+  const url = `${location.origin}/share.html?token=${share.id}`;
+  const expiry = new Date(share.expiresAt).toLocaleDateString('pl-PL', { day:'numeric', month:'long', year:'numeric' });
+  document.getElementById('sheet-share-title').textContent = 'Link gotowy';
+  document.getElementById('sheet-share-body').innerHTML = `
+    <div class="form-row"><label class="form-label">Link dla odbiorcy</label>
+      <input class="form-input" id="share-url-output" value="${esc(url)}" readonly onclick="this.select()" /></div>
+    <button class="submit-btn" onclick="copyShareLink()">Kopiuj link</button>
+    <div style="font-size:13px;color:var(--ink3);margin-top:10px">
+      Wygasa: ${expiry}. Tylko-do-odczytu — odbiorca nie może niczego zmienić.</div>`;
+  openSheet('sheet-share');
+}
+
+function copyShareLink() {
+  const inp = document.getElementById('share-url-output');
+  navigator.clipboard?.writeText(inp.value)
+    .then(() => showToast('🔗 Skopiowano'))
+    .catch(() => showToast('Nie udało się skopiować — zaznacz i Ctrl+C'));
+}
+
+function shareStatusLabel(s) {
+  if (s.revoked) return 'Cofnięty';
+  if (new Date(s.expiresAt) < new Date()) return 'Wygasł';
+  return 'Aktywny';
+}
+
+function shareRowHTML(s) {
+  const status = shareStatusLabel(s);
+  const expiry = new Date(s.expiresAt).toLocaleDateString('pl-PL', { day:'numeric', month:'short' });
+  return `<div class="share-row">
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;color:var(--ink)">${esc(s.title || `${s.todoIds.length} zadań`)}</div>
+      <div style="font-size:12px;color:var(--ink3)">${status} · do ${expiry}</div>
+    </div>
+    ${status==='Aktywny' ? `<button class="row-del" onclick="revokeShare('${s.id}')" title="Cofnij">Cofnij</button>` : ''}
+  </div>`;
+}
+
+async function revokeShare(id) {
+  try {
+    await CueDB.Shares.revoke(id, userId);
+    showToast('🔒 Link cofnięty');
+    openSettings();
+  } catch (e) { showToast('Błąd: ' + e.message); }
+}
+
 function renderReminders() {
   const sorted = [...S.reminders].sort((a,b) => new Date(a.time)-new Date(b.time));
   document.getElementById('reminders-list').innerHTML =
@@ -385,6 +479,25 @@ function noteCardHTML(n) {
 
 const PRIORITY_LABELS = { low: 'Niski', medium: 'Średni', high: 'Wysoki' };
 
+// Zamknięty katalog typów customowych pól zadania — nie generyczny field-builder,
+// żeby dodawanie pola było szybkie (klik, nie konfiguracja nowego typu).
+const FIELD_KINDS = {
+  text:     { label: 'Notatka',  icon: '📝' },
+  number:   { label: 'Budżet',   icon: '💰' },
+  url:      { label: 'Link',     icon: '🔗' },
+  select:   { label: 'Status',   icon: '🏷️' },
+  checkbox: { label: 'Checkbox', icon: '☑️' },
+};
+const STATUS_OPTIONS = ['Do zatwierdzenia', 'W trakcie', 'Zatwierdzone'];
+
+function fieldPillHTML(f) {
+  const info = FIELD_KINDS[f.kind];
+  if (!info || f.value === '' || f.value == null) return '';
+  if (f.kind === 'checkbox' && !f.value) return '';
+  const display = f.kind === 'checkbox' ? (f.label || info.label) : (f.label ? `${f.label}: ${f.value}` : `${f.value}`);
+  return `<span class="field-pill">${info.icon} ${esc(display)}</span>`;
+}
+
 function todoHTML(t) {
   const prClass = t.priority ? `priority-${t.priority}` : '';
   const pill = t.priority
@@ -392,11 +505,27 @@ function todoHTML(t) {
     : '';
   const due = t.due ? `<span class="todo-due">📅 ${fmtDT(t.due)}</span>` : '';
   const metaRow = (pill || due) ? `<div class="todo-meta-row">${pill}${due}</div>` : '';
+  const fieldPills = Object.values(t.customFields || {}).map(fieldPillHTML).join('');
+  const fieldsRow = fieldPills ? `<div class="todo-fields-row">${fieldPills}</div>` : '';
+
+  if (shareMode) {
+    const sel = selectedForShare.has(t.id);
+    return `<div class="todo-item ${t.done?'done':''} ${prClass} share-mode ${sel?'share-selected':''}" onclick="toggleShareSelect('${t.id}')">
+      <div class="share-check ${sel?'checked':''}">${sel?'✓':''}</div>
+      <div style="flex:1;min-width:0">
+        <div class="todo-text ${t.done?'done':''}">${esc(t.text)}</div>
+        ${metaRow}
+        ${fieldsRow}
+      </div>
+    </div>`;
+  }
+
   return `<div class="todo-item ${t.done?'done':''} ${prClass}">
     <div class="todo-check ${t.done?'checked':''}" onclick="toggleTodo('${t.id}');event.stopPropagation()">${t.done?'✓':''}</div>
     <div style="flex:1;min-width:0" onclick="editTodo('${t.id}')">
       <div class="todo-text ${t.done?'done':''}">${esc(t.text)}</div>
       ${metaRow}
+      ${fieldsRow}
     </div>
     <div class="row-actions">
       <button class="row-edit" onclick="editTodo('${t.id}');event.stopPropagation()" title="Edytuj">✎</button>
@@ -647,6 +776,75 @@ async function deleteNote(id) {
 let editingTodoId = null;
 let editingReminderId = null;
 let selectedPriority = null;
+let todoFields = []; // [{ id, kind, label, value }] — customowe pola edytowanego/nowego zadania
+
+function fieldRowHTML(f) {
+  const info = FIELD_KINDS[f.kind];
+  let valueInput;
+  if (f.kind === 'checkbox') {
+    valueInput = `<input type="checkbox" class="field-checkbox" ${f.value ? 'checked' : ''}
+      onchange="setTodoFieldValue('${f.id}', this.checked)" />`;
+  } else if (f.kind === 'select') {
+    valueInput = `<select class="form-input field-value-input" onchange="setTodoFieldValue('${f.id}', this.value)">
+      <option value="">—</option>
+      ${STATUS_OPTIONS.map(o => `<option value="${esc(o)}" ${f.value===o?'selected':''}>${esc(o)}</option>`).join('')}
+    </select>`;
+  } else {
+    const type = f.kind === 'number' ? 'number' : f.kind === 'url' ? 'url' : 'text';
+    valueInput = `<input class="form-input field-value-input" type="${type}" placeholder="Wartość"
+      value="${esc(f.value)}" oninput="setTodoFieldValue('${f.id}', this.value)" />`;
+  }
+  return `<div class="field-row">
+    <span class="field-kind-icon" title="${info.label}">${info.icon}</span>
+    <input class="form-input field-label-input" placeholder="Etykieta (np. ${info.label})"
+      value="${esc(f.label)}" oninput="setTodoFieldLabel('${f.id}', this.value)" />
+    ${valueInput}
+    <button class="field-remove" onclick="removeTodoField('${f.id}')" title="Usuń pole">✕</button>
+  </div>`;
+}
+
+function addFieldPickerHTML() {
+  return `<div class="field-picker">
+    ${Object.entries(FIELD_KINDS).map(([key, info]) =>
+      `<button class="field-add-btn" onclick="addTodoField('${key}')">+ ${info.icon} ${info.label}</button>`
+    ).join('')}
+  </div>`;
+}
+
+function todoFieldsBoxHTML() {
+  return todoFields.map(fieldRowHTML).join('') + addFieldPickerHTML();
+}
+
+function renderTodoFieldsBox() {
+  const box = document.getElementById('todo-fields-box');
+  if (box) box.innerHTML = todoFieldsBoxHTML();
+}
+
+function addTodoField(kind) {
+  todoFields.push({ id: crypto.randomUUID(), kind, label: '', value: kind === 'checkbox' ? false : '' });
+  renderTodoFieldsBox();
+}
+
+function removeTodoField(id) {
+  todoFields = todoFields.filter(f => f.id !== id);
+  renderTodoFieldsBox();
+}
+
+function setTodoFieldLabel(id, val) {
+  const f = todoFields.find(x => x.id === id);
+  if (f) f.label = val;
+}
+
+function setTodoFieldValue(id, val) {
+  const f = todoFields.find(x => x.id === id);
+  if (f) f.value = val;
+}
+
+function serializeTodoFields() {
+  const out = {};
+  for (const f of todoFields) out[f.id] = { kind: f.kind, label: (f.label || '').trim(), value: f.value };
+  return out;
+}
 
 function prioritySelectHTML() {
   const opt = (key, label) =>
@@ -681,6 +879,7 @@ function openAddSheet(type, prefill='') {
   editingTodoId = null;
   editingReminderId = null;
   selectedPriority = null;
+  todoFields = [];
   const title = document.getElementById('sheet-add-title');
   const body  = document.getElementById('sheet-add-body');
 
@@ -693,6 +892,8 @@ function openAddSheet(type, prefill='') {
         ${prioritySelectHTML()}</div>
       <div class="form-row"><label class="form-label">Termin (opcjonalnie)</label>
         <input class="form-input" id="add-todo-due" type="datetime-local" /></div>
+      <div class="form-row"><label class="form-label">Dodatkowe pola</label>
+        <div id="todo-fields-box">${todoFieldsBoxHTML()}</div></div>
       <button class="submit-btn" onclick="addTodo()">Dodaj zadanie</button>`;
     openSheet('sheet-add');
     setTimeout(() => document.getElementById('add-todo-text').focus(), 300);
@@ -715,6 +916,7 @@ function editTodo(id) {
   const t = S.todos.find(x => x.id===id); if (!t) return;
   editingTodoId = id;
   selectedPriority = t.priority || null;
+  todoFields = Object.entries(t.customFields || {}).map(([fid, f]) => ({ id: fid, kind: f.kind, label: f.label || '', value: f.value }));
   const title = document.getElementById('sheet-add-title');
   const body  = document.getElementById('sheet-add-body');
   title.textContent = 'Edytuj zadanie';
@@ -725,6 +927,8 @@ function editTodo(id) {
       ${prioritySelectHTML()}</div>
     <div class="form-row"><label class="form-label">Termin (opcjonalnie)</label>
       <input class="form-input" id="add-todo-due" type="datetime-local" value="${dueLocalInputValue(t.due)}" /></div>
+    <div class="form-row"><label class="form-label">Dodatkowe pola</label>
+      <div id="todo-fields-box">${todoFieldsBoxHTML()}</div></div>
     <div class="edit-actions">
       <button class="cancel-btn" onclick="closeSheet('sheet-add')">Anuluj</button>
       <button class="submit-btn" onclick="saveTodo()">Zapisz</button>
@@ -756,7 +960,7 @@ async function addTodo() {
   const dueRaw = document.getElementById('add-todo-due').value || null;
   const due = dueRaw ? new Date(dueRaw).toISOString() : null;
   try {
-    const t = await CueDB.Todos.create(userId, { text, due, priority: selectedPriority });
+    const t = await CueDB.Todos.create(userId, { text, due, priority: selectedPriority, customFields: serializeTodoFields() });
     S.todos.unshift(t);
     renderAll(); closeSheet('sheet-add'); showToast('✓ Dodane');
   } catch (e) { showToast('Błąd: ' + e.message); }
@@ -770,7 +974,7 @@ async function saveTodo() {
   const dueRaw = document.getElementById('add-todo-due').value || null;
   const due = dueRaw ? new Date(dueRaw).toISOString() : null;
   try {
-    const updated = await CueDB.Todos.update(editingTodoId, userId, { text, due, priority: selectedPriority });
+    const updated = await CueDB.Todos.update(editingTodoId, userId, { text, due, priority: selectedPriority, customFields: serializeTodoFields() });
     Object.assign(t, updated);
     renderAll(); closeSheet('sheet-add'); showToast('✓ Zapisane');
   } catch (e) { showToast('Błąd: ' + e.message); }
@@ -1391,7 +1595,7 @@ function maskKey(k) {
   return k.slice(0, 10) + '…' + k.slice(-6);
 }
 
-function openSettings() {
+async function openSettings() {
   const body = document.getElementById('sheet-settings-body');
   const installedAsPWA = window.matchMedia('(display-mode: standalone)').matches;
   const notifState = Notify.state;
@@ -1401,6 +1605,12 @@ function openSettings() {
     default: '… nieaktywne (poprosimy gdy potrzebne)',
     unsupported: '— niewspierane w tej przeglądarce',
   }[notifState];
+
+  let shareRows = '<div style="font-size:13px;color:var(--ink3)">Brak udostępnień.</div>';
+  try {
+    const shares = await CueDB.Shares.listForUser(userId);
+    if (shares.length) shareRows = shares.map(shareRowHTML).join('');
+  } catch (e) { showToast('Błąd: ' + e.message); }
 
   body.innerHTML = `
     <div class="settings-section">
@@ -1428,6 +1638,11 @@ function openSettings() {
           ? '<br><br>✓ Cue jest zainstalowane jako PWA.'
           : '<br><br>💡 Na telefonie kliknij <em>"Dodaj do ekranu głównego"</em> w menu przeglądarki.'}
       </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">Udostępnione linki</div>
+      ${shareRows}
     </div>
 
     <div class="settings-section">
