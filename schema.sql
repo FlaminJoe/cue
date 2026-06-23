@@ -1,12 +1,12 @@
--- ─────────────────────────────────────────────
--- Cue — Supabase schema (Etap 2 + Etap 4 migration)
--- ─────────────────────────────────────────────
+-- ================================================
+-- Cue - Supabase schema (Etap 2 + Etap 4 migration)
+-- ================================================
 -- Uruchomienie:  Supabase Dashboard → SQL Editor → wklej całość → Run.
--- Idempotentne — można puścić ponownie (drop if exists / add column if not exists).
--- Etap 4 dodaje todos.priority — bez utraty istniejących danych.
--- ─────────────────────────────────────────────
+-- Idempotentne - można puścić ponownie (drop if exists / add column if not exists).
+-- Etap 4 dodaje todos.priority - bez utraty istniejących danych.
+-- ================================================
 
--- ── 1. TABELE ────────────────────────────────
+-- == 1. TABELE ==================================
 
 create table if not exists public.notes (
   id          uuid primary key default gen_random_uuid(),
@@ -38,16 +38,16 @@ create table if not exists public.todos (
 );
 -- Migracja inline dla istniejących baz (priority dodane w Etapie 4)
 alter table public.todos add column if not exists priority text;
--- Migracja inline: customowe pola zadania (Etap 5) — kształt patrz docs/database-schema.md
+-- Migracja inline: customowe pola zadania (Etap 5) - kształt patrz docs/database-schema.md
 alter table public.todos add column if not exists custom_fields jsonb not null default '{}';
-do $$ begin
+do $check$ begin
   if not exists (
     select 1 from pg_constraint where conname = 'todos_priority_check'
   ) then
     alter table public.todos
       add constraint todos_priority_check check (priority in ('low','medium','high'));
   end if;
-end $$;
+end $check$;
 create index if not exists todos_user_id_idx on public.todos(user_id);
 create index if not exists todos_priority_idx on public.todos(priority);
 
@@ -95,8 +95,8 @@ create table if not exists public.pomodoro_sessions (
 create index if not exists pomodoro_sessions_user_id_idx on public.pomodoro_sessions(user_id);
 create index if not exists pomodoro_sessions_started_at_idx on public.pomodoro_sessions(started_at desc);
 
--- Udostępnianie zadań przez link (Etap 5) — `id` jest tokenem w URL (share.html?token=...).
--- Publiczny odczyt NIE idzie przez RLS policy na tej tabeli (patrz sekcja 4) — żeby uniknąć
+-- Udostępnianie zadań przez link (Etap 5) - `id` jest tokenem w URL (share.html?token=...).
+-- Publiczny odczyt NIE idzie przez RLS policy na tej tabeli (patrz sekcja 4) - żeby uniknąć
 -- sytuacji, w której ktokolwiek z anon key mógłby wylistować wszystkie aktywne udostępnienia
 -- bez znajomości tokenu. Idzie wyłącznie przez security definer function.
 create table if not exists public.shares (
@@ -110,7 +110,7 @@ create table if not exists public.shares (
 );
 create index if not exists shares_user_id_idx on public.shares(user_id);
 
--- ── 2. RLS ───────────────────────────────────
+-- == 2. RLS =====================================
 
 alter table public.notes              enable row level security;
 alter table public.todos              enable row level security;
@@ -121,7 +121,7 @@ alter table public.pomodoro_sessions  enable row level security;
 alter table public.shares             enable row level security;
 
 -- Polityki: user widzi/edytuje tylko swoje rekordy
-do $$
+do $rls$
 declare
   t text;
 begin
@@ -152,19 +152,19 @@ begin
       t||'_delete', t
     );
   end loop;
-end $$;
+end $rls$;
 
--- ── 3. TRIGGERY ──────────────────────────────
+-- == 3. TRIGGERY ================================
 
 -- 3a. updated_at auto-bump
 create or replace function public.handle_updated_at()
 returns trigger
 language plpgsql
-as $$
+as $updatedat$
 begin
   new.updated_at = now();
   return new;
-end $$;
+end $updatedat$;
 
 drop trigger if exists notes_updated_at        on public.notes;
 drop trigger if exists todos_updated_at        on public.todos;
@@ -187,22 +187,22 @@ create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
-as $$
+as $newuser$
 begin
   insert into public.user_settings (user_id) values (new.id)
     on conflict (user_id) do nothing;
   return new;
-end $$;
+end $newuser$;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- ── 4. PUBLICZNY ODCZYT UDOSTĘPNIEŃ (Etap 5) ─
+-- == 4. PUBLICZNY ODCZYT UDOSTEPNIEN (Etap 5) ===
 
 -- Jedyna droga, którą anonimowy odbiorca linku (share.html?token=...) dostaje dane.
--- Zwracają tylko wiersz dopasowany do podanego tokenu — nie ma query path, który
+-- Zwracają tylko wiersz dopasowany do podanego tokenu - nie ma query path, który
 -- ujawni dane bez znajomości tokenu (w przeciwieństwie do RLS policy z `to anon`).
 -- Działa bez FORCE ROW LEVEL SECURITY, bo funkcja jest tworzona przez właściciela
 -- tabel (rola uruchamiająca ten skrypt), a właściciel tabeli jest domyślnie
@@ -213,11 +213,11 @@ returns table (title text, expires_at timestamptz)
 language sql
 security definer
 set search_path = public
-as $$
+as $sharemeta$
   select s.title, s.expires_at
   from public.shares s
   where s.id = p_token and not s.revoked and s.expires_at > now();
-$$;
+$sharemeta$;
 
 create or replace function public.get_shared_todos(p_token uuid)
 returns table (
@@ -227,12 +227,12 @@ returns table (
 language sql
 security definer
 set search_path = public
-as $$
+as $sharedtodos$
   select t.id, t.text, t.done, t.due, t.priority, t.custom_fields, t.created_at
   from public.todos t
   join public.shares s on s.user_id = t.user_id and t.id = any(s.todo_ids)
   where s.id = p_token and not s.revoked and s.expires_at > now();
-$$;
+$sharedtodos$;
 
 grant execute on function public.get_share_meta(uuid)    to anon, authenticated;
 grant execute on function public.get_shared_todos(uuid)  to anon, authenticated;
