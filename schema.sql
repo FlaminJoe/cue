@@ -130,10 +130,10 @@ begin
       'notes','todos','reminders','user_settings','agent_queue','pomodoro_sessions','shares'
     ])
   loop
-    execute format('drop policy if exists %I_select on public.%I', t||'_select', t);
-    execute format('drop policy if exists %I_insert on public.%I', t||'_insert', t);
-    execute format('drop policy if exists %I_update on public.%I', t||'_update', t);
-    execute format('drop policy if exists %I_delete on public.%I', t||'_delete', t);
+    execute format('drop policy if exists %I on public.%I', t||'_select', t);
+    execute format('drop policy if exists %I on public.%I', t||'_insert', t);
+    execute format('drop policy if exists %I on public.%I', t||'_update', t);
+    execute format('drop policy if exists %I on public.%I', t||'_delete', t);
 
     execute format(
       'create policy %I on public.%I for select using (auth.uid() = user_id)',
