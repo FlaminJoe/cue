@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Cue — Brand Foundations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f7f0e6; --bg2:#f0e6d6; --bg3:#e8dac8; --card:#faf5ee;
+    --ink:#2c2416; --ink2:#5a4e3c; --ink3:#9a8c78;
+    --accent:#c4764a; --green:#6b8f6e; --blue:#7090a8;
+    --purple:#9080a0; --gold:#c49a48; --red:#b85040;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{-webkit-print-color-adjust:exact; print-color-adjust:exact;}
+  body{
+    font-family:'DM Sans',system-ui,sans-serif;
+    color:var(--ink); background:var(--bg);
+    font-weight:300; line-height:1.6; font-size:15px;
+  }
+  .page{
+    width:210mm; min-height:297mm; margin:0 auto; padding:24mm 22mm;
+    background:var(--bg); position:relative; page-break-after:always;
+  }
+  .page:last-child{page-break-after:auto;}
+  h1,h2,h3,h4{font-family:'Lora',Georgia,serif; font-weight:500; color:var(--ink); line-height:1.2;}
+  h1{font-size:52px; font-weight:600; letter-spacing:-0.5px;}
+  h2{font-size:30px; margin-bottom:6px;}
+  h3{font-size:20px; margin-bottom:4px;}
+  h4{font-size:16px; font-family:'DM Sans'; font-weight:700; letter-spacing:0.3px;}
+  p{margin-bottom:12px; color:var(--ink2);}
+  strong{font-weight:700; color:var(--ink);}
+  em{font-style:italic; color:var(--ink);}
+  .eyebrow{font-family:'DM Sans'; font-weight:700; font-size:11px; letter-spacing:2.5px; text-transform:uppercase; color:var(--accent); margin-bottom:14px;}
+  .lead{font-size:19px; line-height:1.55; color:var(--ink2); font-weight:300;}
+  .divider{height:1px; background:var(--bg3); border:none; margin:26px 0;}
+  .section{margin-top:30px;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  .grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;}
+  .card{background:var(--card); border-radius:18px; padding:22px 24px; border:1px solid var(--bg3);}
+  .pill{display:inline-block; background:var(--bg2); border-radius:999px; padding:5px 14px; font-size:12px; font-weight:500; color:var(--ink2); margin:3px 4px 3px 0;}
+  .accent{color:var(--accent);}
+  ul{margin:0 0 12px 18px;} li{margin-bottom:6px; color:var(--ink2);}
+  .yes{color:var(--green); font-weight:700;}
+  .no{color:var(--red); font-weight:700;}
+  .quote{font-family:'Lora',serif; font-style:italic; font-size:24px; line-height:1.4; color:var(--ink); padding:18px 0;}
+  .vo-grid{display:grid; grid-template-columns:1fr 1fr; gap:0; border:1px solid var(--bg3); border-radius:16px; overflow:hidden;}
+  .vo-grid > div{padding:14px 18px; border-bottom:1px solid var(--bg3);}
+  .vo-grid .h{background:var(--bg2); font-weight:700; font-family:'DM Sans'; color:var(--ink); font-size:13px; letter-spacing:0.5px;}
+  .vo-grid .say{border-right:1px solid var(--bg3);}
+  .swatch{height:64px; border-radius:12px; margin-bottom:8px; border:1px solid rgba(0,0,0,0.06);}
+  .sw-label{font-size:11px; font-weight:500; color:var(--ink2);}
+  .sw-hex{font-size:11px; color:var(--ink3); font-family:'DM Sans';}
+  .logo-mark{display:flex; align-items:center; gap:16px; margin-bottom:40px;}
+  .orb{width:46px; height:46px; border-radius:50%;
+    background:radial-gradient(circle at 38% 35%, #f2c98a 0%, var(--accent) 55%, #a35a34 100%);
+    box-shadow:0 0 28px rgba(196,118,74,0.45);}
+  .wordmark{font-family:'Lora',serif; font-weight:600; font-size:34px; letter-spacing:-0.5px;}
+  .cover{display:flex; flex-direction:column; justify-content:center; min-height:249mm;}
+  .cover .orb{width:96px; height:96px; box-shadow:0 0 60px rgba(196,118,74,0.5); margin-bottom:34px;}
+  .footer{position:absolute; bottom:14mm; left:22mm; right:22mm; display:flex; justify-content:space-between; font-size:10px; color:var(--ink3); letter-spacing:0.5px; border-top:1px solid var(--bg3); padding-top:8px;}
+  .num{font-variant-numeric:tabular-nums;}
+  .codebox{background:var(--ink); color:#f2e9da; border-radius:14px; padding:18px 22px; font-family:'DM Sans'; font-size:13px; line-height:1.7;}
+  .codebox .c{color:var(--accent);}
+  table.naming{width:100%; border-collapse:collapse; font-size:14px;}
+  table.naming td,table.naming th{text-align:left; padding:10px 12px; border-bottom:1px solid var(--bg3); color:var(--ink2);}
+  table.naming th{font-family:'DM Sans'; font-weight:700; color:var(--ink); font-size:12px; letter-spacing:0.5px; text-transform:uppercase;}
+  .tag{font-weight:700; color:var(--accent);}
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="page">
+  <div class="cover">
+    <div class="orb"></div>
+    <div class="eyebrow">Brand Foundations · FlaminJoe Studio</div>
+    <h1>Cue</h1>
+    <p class="lead" style="max-width:420px; margin-top:18px;">Strategiczny fundament marki — nazwa, obietnica, głos i system komunikacji dla cichego asystenta życia.</p>
+    <div style="margin-top:40px;">
+      <span class="pill">/kjuː/</span>
+      <span class="pill">ambient life assistant</span>
+      <span class="pill">calm tech</span>
+    </div>
+    <p style="margin-top:60px; font-size:12px; color:var(--ink3);">Wersja 1.0 · czerwiec 2026 · dokument wewnętrzny</p>
+  </div>
+</div>
+
+<!-- 1. NAZWA -->
+<div class="page">
+  <div class="eyebrow">01 · Nazwa</div>
+  <h2>Dlaczego <span class="accent">Cue</span> to dobra nazwa</h2>
+  <p class="lead">Nie była przypadkiem i nie wymaga zmiany. Cue robi dokładnie to, co ma robić produkt: jest cicha, mówi w jednej sekundzie i nie da się jej źle zinterpretować.</p>
+  <hr class="divider">
+  <div class="grid2">
+    <div class="card">
+      <h4>ZNACZENIE</h4>
+      <p><em>Cue</em> /kjuː/ — sygnał, podpowiedź, moment wejścia. To słowo, które aktor słyszy zza kulis: dyskretny znak „teraz Twoja kolej". Dokładnie tak ma działać produkt — szepcze we właściwym momencie, nie krzyczy.</p>
+    </div>
+    <div class="card">
+      <h4>FONETYKA</h4>
+      <p>Jedna sylaba, miękkie wejście, otwarte „u" na końcu. Łatwa do wymówienia po polsku i po angielsku, brzmi przyjaźnie a nie technicznie. Krótka nazwa = mocny wordmark i prosty sygnet.</p>
+    </div>
+    <div class="card">
+      <h4>SUBTELNE WARSTWY</h4>
+      <p>Homofon <em>queue</em> (kolejka rzeczy do zrobienia) i litera <em>Q</em> — drobne, pozytywne skojarzenia, których nie eksponujemy, ale które grają na korzyść „drugiego mózgu".</p>
+    </div>
+    <div class="card">
+      <h4>POJEMNOŚĆ</h4>
+      <p>Nazwa nie zamyka się w „notatniku". Uniesie wizję obecności w wielu punktach życia (telefon, desktop, głos, IoT) i przejście od osobistej apki do SaaS — dojrzała, nie modna-na-sezon.</p>
+    </div>
+  </div>
+  <div class="section">
+    <h3>Zapis i wymowa</h3>
+    <p>Zawsze <strong>Cue</strong> — wielka „C", reszta małymi. Nigdy „CUE", „cue" (na początku zdania), „Que" ani „Q". W kontaktach głosowych/onboardingu można podpowiedzieć wymowę: <em>„Cue — czytaj «kju»"</em>.</p>
+  </div>
+  <div class="footer"><span>CUE · BRAND FOUNDATIONS</span><span class="num">01</span></div>
+</div>
+
+<!-- 2. POZYCJONOWANIE -->
+<div class="page">
+  <div class="eyebrow">02 · Pozycjonowanie</div>
+  <h2>Gdzie stoi Cue</h2>
+  <p class="lead">W kategorii produktywności, której wszyscy nienawidzą, Cue jest stroną spokoju. Nie kolejnym dashboardem — przeciwwagą dla nich.</p>
+  <hr class="divider">
+  <div class="card" style="background:var(--bg2);">
+    <h4 style="color:var(--accent); margin-bottom:14px;">POSITIONING STATEMENT</h4>
+    <p style="font-family:'Lora',serif; font-size:18px; line-height:1.6; color:var(--ink);">
+      Dla <strong>przebodźcowanych profesjonalistów, twórców i osób z ADHD</strong>, którzy mają za dużo w głowie i toną w krzykliwych narzędziach —
+      <strong>Cue</strong> jest cichym, ciepłym asystentem życia, który trzyma notatki, zadania i przypomnienia w jednym spokojnym miejscu i podpowiada we właściwym momencie.
+      W odróżnieniu od Notion czy Todoist, które przytłaczają, gamifikują i podkręcają — <strong>Cue wycisza.</strong>
+    </p>
+  </div>
+  <div class="section grid2">
+    <div>
+      <h3>Obietnica marki</h3>
+      <p class="quote" style="font-size:21px; padding-top:8px;">„Wyjmij to z głowy. Resztą zajmie się Cue — po cichu."</p>
+      <p>Jedna rzecz, którą obiecujemy bez wyjątku: ulgę. Mniej rzeczy do upilnowania w głowie, mniej decyzji, mniej hałasu. Każda funkcja musi tę obietnicę spełniać albo z niej wypaść.</p>
+    </div>
+    <div>
+      <h3>Czym Cue NIE jest</h3>
+      <ul>
+        <li><span class="no">✕</span> produktywnościowym „beastmode" / hustle</li>
+        <li><span class="no">✕</span> zimnym technicznym dashboardem</li>
+        <li><span class="no">✕</span> aplikacją z gamifikacją i streakami</li>
+        <li><span class="no">✕</span> czymś dziecinnym ani zabawkowym</li>
+        <li><span class="no">✕</span> kolejnym „startup-tech-blue" SaaS-em</li>
+      </ul>
+    </div>
+  </div>
+  <div class="section">
+    <h3>Trzy filary komunikacji</h3>
+    <div class="grid3" style="margin-top:12px;">
+      <div class="card"><h4 class="accent">CICHY</h4><p style="font-size:14px;">Ambient, w tle, nienapraszający się. Nigdy nie walczy o uwagę — czeka, aż będzie potrzebny.</p></div>
+      <div class="card"><h4 class="accent">CIEPŁY</h4><p style="font-size:14px;">Ludzki, „domowy", papierowy. Bliżej światła lampy niż neonu. Mówi jak życzliwy człowiek.</p></div>
+      <div class="card"><h4 class="accent">MĄDRY DYSKRETNIE</h4><p style="font-size:14px;">AI jest, ale schowane. Asystent szepcze trafną podpowiedź, nie chwali się technologią.</p></div>
+    </div>
+  </div>
+  <div class="footer"><span>CUE · BRAND FOUNDATIONS</span><span class="num">02</span></div>
+</div>
+
+<!-- 3. TON GŁOSU -->
+<div class="page">
+  <div class="eyebrow">03 · Ton głosu</div>
+  <h2>Jak Cue mówi</h2>
+  <p class="lead">Jak zaufany przyjaciel, który Cię zna, mówi cicho i nigdy nie ocenia. Spokojnie, prosto, ciepło — i zawsze po Twojej stronie.</p>
+  <hr class="divider">
+  <h3>Cztery zasady głosu</h3>
+  <div class="grid2" style="margin-top:12px;">
+    <div class="card"><h4>1 · Cicho, nie głośno</h4><p style="font-size:14px;">Bez wykrzykników, bez CAPS-LOCKA, bez „⚡ BOOST PRODUCTIVITY". Spokojne zdania oznajmujące. Jeśli coś brzmi jak powiadomienie push z gry — przepisz.</p></div>
+    <div class="card"><h4>2 · Krótko, nie zwięźle-na-siłę</h4><p style="font-size:14px;">Mówimy tyle, ile trzeba i ani słowa więcej. Krótkie zdania dają oddech. Ale ciepło > oszczędność — lepiej „Gotowe na dziś?" niż „Brak zadań".</p></div>
+    <div class="card"><h4>3 · Z Tobą, nie do Ciebie</h4><p style="font-size:14px;">Cue jest partnerem, nie trenerem ani szefem. Nie rozkazuje, nie poucza, nie zawstydza. „Zapiszę to" zamiast „Powinieneś to zapisać".</p></div>
+    <div class="card"><h4>4 · Bez oceny, bez presji</h4><p style="font-size:14px;">Nigdy „znowu nic nie zrobiłeś", żadnych streaków do utrzymania, żadnego poczucia winy. Pusty dzień to spokój, nie porażka.</p></div>
+  </div>
+  <div class="section">
+    <h3>Słowa, których używamy / unikamy</h3>
+    <p><span class="yes">TAK:</span> &nbsp;<span class="pill">spokojnie</span><span class="pill">po cichu</span><span class="pill">zapiszę</span><span class="pill">przypomnę</span><span class="pill">odłóż</span><span class="pill">gdy będziesz gotów</span><span class="pill">tu jest</span><span class="pill">oddech</span></p>
+    <p style="margin-top:10px;"><span class="no">NIE:</span> &nbsp;<span class="pill" style="text-decoration:line-through;">boost</span><span class="pill" style="text-decoration:line-through;">crush it</span><span class="pill" style="text-decoration:line-through;">produktywność 10×</span><span class="pill" style="text-decoration:line-through;">nie zwlekaj</span><span class="pill" style="text-decoration:line-through;">streak</span><span class="pill" style="text-decoration:line-through;">level up</span><span class="pill" style="text-decoration:line-through;">ⓘ błąd krytyczny</span></p>
+  </div>
+  <div class="footer"><span>CUE · BRAND FOUNDATIONS</span><span class="num">03</span></div>
+</div>
+
+<!-- 4. VOICE W PRAKTYCE -->
+<div class="page">
+  <div class="eyebrow">04 · Voice w praktyce</div>
+  <h2>Mikrokopia — powiedz tak, nie tak</h2>
+  <p class="lead">Głos marki żyje w drobiazgach: pustym ekranie, błędzie, przypomnieniu. Tu Cue albo wygrywa zaufanie, albo brzmi jak każdy inny SaaS.</p>
+  <hr class="divider">
+  <div class="vo-grid">
+    <div class="h say">CUE MÓWI</div><div class="h">NIE MÓWI</div>
+    <div class="say">Cisza. Możesz tu wrzucić, co masz w głowie.</div><div>Brak notatek. Dodaj pierwszą, aby rozpocząć!</div>
+    <div class="say">Zapisałem. Wrócę z tym o 18:00.</div><div>✅ Przypomnienie ustawione pomyślnie!</div>
+    <div class="say">Coś nie zaskoczyło. Spróbujmy jeszcze raz?</div><div>Error 500: Request failed.</div>
+    <div class="say">Skupienie na 25 minut. Resztę przypilnuję.</div><div>🔥 Czas na FOCUS MODE! Nie odpuszczaj!</div>
+    <div class="say">Na dziś czysto. Odpocznij.</div><div>0 zadań ukończonych. Twój streak: 0 dni.</div>
+    <div class="say">Mam pomysł, gdzie to wpiąć — chcesz?</div><div>AI sugeruje automatyczną kategoryzację (beta).</div>
+  </div>
+  <p style="margin-top:20px; font-size:13px; color:var(--ink3);">Zasada testu: przeczytaj komunikat na głos szeptem. Jeśli da się go wyszeptać życzliwie — jest w głosie Cue. Jeśli wymaga podniesienia tonu — przepisz.</p>
+  <div class="footer"><span>CUE · BRAND FOUNDATIONS</span><span class="num">04</span></div>
+</div>
+
+<!-- 5. TAGLINE & MESSAGING -->
+<div class="page">
+  <div class="eyebrow">05 · Tagline & messaging</div>
+  <h2>Linie, których używamy</h2>
+  <hr class="divider">
+  <h3>Tagline główny</h3>
+  <p class="quote" style="font-size:32px; color:var(--accent);">Mniej szumu. Więcej Ciebie.</p>
+  <p>Krótki, rytmiczny, oddaje obietnicę (cisza → przestrzeń na życie). Pasuje pod wordmark i jako nagłówek strony.</p>
+  <div class="section">
+    <h3>Warianty zapasowe (do kontekstu)</h3>
+    <div class="grid2">
+      <div class="card"><p style="font-family:'Lora',serif; font-size:17px; color:var(--ink); margin:0;">„Twój cichy drugi mózg."</p><p style="font-size:12px; margin:6px 0 0;">— gdy mówimy do osób szukających „second brain"</p></div>
+      <div class="card"><p style="font-family:'Lora',serif; font-size:17px; color:var(--ink); margin:0;">„Wyjmij to z głowy."</p><p style="font-size:12px; margin:6px 0 0;">— CTA, onboarding, app store</p></div>
+      <div class="card"><p style="font-family:'Lora',serif; font-size:17px; color:var(--ink); margin:0;">„Spokój, który pamięta za Ciebie."</p><p style="font-size:12px; margin:6px 0 0;">— ton emocjonalny, landing hero</p></div>
+      <div class="card"><p style="font-family:'Lora',serif; font-size:17px; color:var(--ink); margin:0;">„Podpowie. Nie przerwie."</p><p style="font-size:12px; margin:6px 0 0;">— akcent na dyskretne AI / notyfikacje</p></div>
+    </div>
+  </div>
+  <div class="section">
+    <h3>One-liner (do bio, app store, opisów)</h3>
+    <p class="card" style="font-size:15px;">Cue to ciepły, cichy asystent życia, który trzyma Twoje notatki, zadania i przypomnienia w jednym spokojnym miejscu — i podpowiada we właściwym momencie, zamiast krzyczeć.</p>
+  </div>
+  <div class="section">
+    <h3>Boilerplate (stopka / „o nas")</h3>
+    <p style="font-size:13px;">Cue to ambient life assistant od FlaminJoe Studio — notatki, zadania, przypomnienia, Pomodoro i asystent AI w jednym, spokojnym miejscu. Zaprojektowany dla osób z ADHD i przebodźcowanych twórców, którzy mają dość krzykliwych narzędzi produktywności. Działa w przeglądarce na telefonie i desktopie.</p>
+  </div>
+  <div class="footer"><span>CUE · BRAND FOUNDATIONS</span><span class="num">05</span></div>
+</div>
+
+<!-- 6. SYSTEM NAZEWNICZY -->
+<div class="page">
+  <div class="eyebrow">06 · System nazewniczy</div>
+  <h2>Jak nazywamy rzeczy w Cue</h2>
+  <p class="lead">Spójne nazwy funkcji budują świat marki. Trzymamy się prostych, ludzkich słów — nigdy żargonu.</p>
+  <hr class="divider">
+  <table class="naming">
+    <tr><th>Element</th><th>Nazwa w Cue</th><th>Dlaczego</th></tr>
+    <tr><td>Przypomnienia</td><td class="tag">Cues</td><td>Pojedynczy sygnał = „a cue". Spójne z nazwą marki.</td></tr>
+    <tr><td>Asystent AI</td><td class="tag">Szept / Whisper</td><td>AI „szepcze podpowiedź" — nazwa schowana, nie „AI Assistant".</td></tr>
+    <tr><td>Tryb skupienia</td><td class="tag">Skupienie</td><td>Po ludzku, zamiast „Pomodoro Timer" czy „Focus Mode 🔥".</td></tr>
+    <tr><td>Szybkie wrzucenie</td><td class="tag">Wyrzuć z głowy</td><td>Capture bar — oddaje obietnicę ulgi, nie „Quick Add".</td></tr>
+    <tr><td>Drugi mózg / baza</td><td class="tag">Głowa</td><td>„Wszystko, co masz w Głowie" — ciepła metafora zamiast „workspace".</td></tr>
+  </table>
+  <div class="section">
+    <h3>Architektura produktu i planów (na przejście do SaaS)</h3>
+    <div class="grid3" style="margin-top:12px;">
+      <div class="card"><h4>Cue</h4><p style="font-size:13px;">Plan darmowy. Wszystko, czego potrzeba, by wyjąć to z głowy.</p></div>
+      <div class="card" style="border:1.5px solid var(--accent);"><h4 class="accent">Cue Plus</h4><p style="font-size:13px;">~99 zł/mies. Pełne AI (Szept), więcej obecności, sync bez limitów.</p></div>
+      <div class="card"><h4>Cue Studio</h4><p style="font-size:13px;">~199 zł/mies. Dla twórców/zespołów — wiele „Głów", współdzielenie.</p></div>
+    </div>
+    <p style="font-size:12px; color:var(--ink3); margin-top:12px;">Zasada: marka rozszerza się przez przymiotnik (<em>Plus</em>, <em>Studio</em>), nigdy przez „Pro/Premium/Enterprise" — to słownik korpo-SaaS, którego Cue unika.</p>
+  </div>
+  <div class="footer"><span>CUE · BRAND FOUNDATIONS</span><span class="num">06</span></div>
+</div>
+
+<!-- 7. WIZUALNY SYSTEM -->
+<div class="page">
+  <div class="eyebrow">07 · System wizualny</div>
+  <h2>Kolor i typografia</h2>
+  <p class="lead">Ziemista, papierowa, terakotowo-kremowa. Zero zimnych bieli, zero czystej czerni. Światło lampy, kartka papieru, glina.</p>
+  <hr class="divider">
+  <h3>Paleta podstawowa</h3>
+  <div class="grid3" style="margin-top:12px; grid-template-columns:repeat(4,1fr);">
+    <div><div class="swatch" style="background:#f7f0e6;"></div><div class="sw-label">Tło</div><div class="sw-hex">#f7f0e6</div></div>
+    <div><div class="swatch" style="background:#faf5ee;"></div><div class="sw-label">Karta</div><div class="sw-hex">#faf5ee</div></div>
+    <div><div class="swatch" style="background:#2c2416;"></div><div class="sw-label">Tekst</div><div class="sw-hex">#2c2416</div></div>
+    <div><div class="swatch" style="background:#c4764a;"></div><div class="sw-label">Akcent</div><div class="sw-hex">#c4764a</div></div>
+  </div>
+  <h3 style="margin-top:22px;">Akcenty funkcyjne / kategorie</h3>
+  <div class="grid3" style="margin-top:12px; grid-template-columns:repeat(5,1fr);">
+    <div><div class="swatch" style="background:#6b8f6e; height:48px;"></div><div class="sw-hex">#6b8f6e</div></div>
+    <div><div class="swatch" style="background:#7090a8; height:48px;"></div><div class="sw-hex">#7090a8</div></div>
+    <div><div class="swatch" style="background:#9080a0; height:48px;"></div><div class="sw-hex">#9080a0</div></div>
+    <div><div class="swatch" style="background:#c49a48; height:48px;"></div><div class="sw-hex">#c49a48</div></div>
+    <div><div class="swatch" style="background:#b85040; height:48px;"></div><div class="sw-hex">#b85040</div></div>
+  </div>
+  <div class="section grid2">
+    <div class="card">
+      <h4>NAGŁÓWKI / LOGO</h4>
+      <p style="font-family:'Lora',serif; font-size:30px; color:var(--ink); margin:6px 0;">Lora</p>
+      <p style="font-size:13px;">Serif. Daje ciepło i charakter, „papierowość". Wagi 400 / 500 / 600. Google Fonts.</p>
+    </div>
+    <div class="card">
+      <h4>INTERFEJS / TREŚĆ</h4>
+      <p style="font-family:'DM Sans',sans-serif; font-size:30px; font-weight:500; color:var(--ink); margin:6px 0;">DM Sans</p>
+      <p style="font-size:13px;">Sans-serif. Czysty, czytelny, spokojny. Wagi 300 / 400 / 500. Google Fonts.</p>
+    </div>
+  </div>
+  <p style="font-size:12px; color:var(--ink3); margin-top:14px;">Reguła: para <strong>serif (osobowość) + sans (funkcja)</strong>. Logo i nagłówki Lora, wszystko inne DM Sans. Light-mode-first na ciepłym kremie — branding nigdy nie zakłada białego #ffffff tła.</p>
+  <div class="footer"><span>CUE · BRAND FOUNDATIONS</span><span class="num">07</span></div>
+</div>
+
+<!-- 8. PROMPT DLA CLAUDE DESIGN -->
+<div class="page">
+  <div class="eyebrow">08 · Brief wizualny</div>
+  <h2>Prompt dla Claude Design / grafika</h2>
+  <p class="lead">Gotowy do wklejenia brief na logo i ikonę PWA. Strategia powyżej, tu — konkret wykonawczy.</p>
+  <hr class="divider">
+  <div class="codebox">
+<span class="c"># ZADANIE</span><br>
+Zaprojektuj logo i app-icon dla „Cue" — ambient life assistant (PWA).<br>
+Marka: ciepła, cicha, dyskretnie inteligentna. Calm tech, NIE startup-tech-blue.<br><br>
+<span class="c"># SYGNET (priorytet)</span><br>
+Metafora: światło / sygnał / obecność. Kierunek wyjściowy — „ciepła<br>
+świecąca kula" (orb) w terakocie. Rozwiń go w dojrzały, ponadczasowy<br>
+symbol. Może sugerować: wschodzące światło, kropkę-sygnał, miękkie „c".<br>
+Musi działać jako <span class="c">maskable icon</span> (bezpieczny margines, przycinanie do<br>
+koła/squircle) i być czytelny w 16–32px. Prosty, organiczny, miękki.<br><br>
+<span class="c"># WORDMARK</span><br>
+„Cue" — Lora 600, wielka C. Wersje: pozioma (sygnet + słowo),<br>
+kwadratowa (sam sygnet), monochrom (1 kolor), negatyw (na ciemnym).<br><br>
+<span class="c"># KOLORY</span><br>
+Tło: #f7f0e6 · Akcent: #c4764a · Tekst: #2c2416 (NIE czysta czerń).<br>
+Projektuj na ciepłym kremie, NIE na białym #ffffff.<br><br>
+<span class="c"># DELIVERABLES</span><br>
+SVG (priorytet) + favicon 32px, apple-touch 180px, icon-192, icon-512.<br>
+OG image 1200×630. Zestaw 4–6 ikonek w stylu marki (notatka, zadanie,<br>
+przypomnienie, skupienie, AI/szept).<br><br>
+<span class="c"># UNIKAJ</span><br>
+Neon, zimny niebieski, ostre kontrasty, gradienty SaaS, clipart,<br>
+gamifikacja, brutalist, jaskrawość, przeładowanie.
+  </div>
+  <p style="margin-top:18px; font-size:13px; color:var(--ink3);">Pełny brief produkcyjny (wszystkie rozmiary, warianty, wymagania techniczne) — w <strong>docs/branding-brief.md</strong>. Ten dokument jest jego strategiczną nadbudową.</p>
+  <div class="footer"><span>CUE · BRAND FOUNDATIONS · FlaminJoe Studio</span><span class="num">08</span></div>
+</div>
+
+</body>
+</html>
